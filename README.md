@@ -1,11 +1,10 @@
-INSTALLING
+# API de Notas Personales
 
-
-uvicorn main:app --reload
+Sistema para gestionar usuarios y sus notas privadas con clasificación automática por IA.
 
 ---
 
-## Ejecución local (actualizada para nuevos colaboradores)
+## Ejecución local
 
 ### 1. Clonar el repositorio
 
@@ -36,83 +35,56 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 4. Variables de entorno
+### 4. Configurar el archivo `.env`
 
-Crea un archivo `.env` en la raíz del proyecto con el siguiente contenido:
+Para que la clasificación automática de notas funcione, necesitas crear un archivo `.env` en la raíz del proyecto con tu clave de API de OpenAI:
 
 ```env
-OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-GEMINI_MODEL=gemini-2.0-flash
+OPENAI_API_KEY = tu-api-key
 ```
 
-| Variable | Obligatoria | Descripción |
-|---|---|---|
-| `OPENAI_API_KEY` | Sí (para clasificación IA) | Clave de API de OpenAI. Sin ella el backend funciona, pero la clasificación automática devuelve `"otras"` con confianza `0.0`. |
-| `GEMINI_MODEL` | No | Modelo a usar en la API. Por defecto: `gemini-2.0-flash`. |
+> **Sin este archivo el backend arranca igualmente**, pero todas las notas se clasificarán como `"otras"` con confianza `0.0`.
+>
+> El archivo `.env` se carga automáticamente gracias a `python-dotenv`. **No subas este archivo a GitHub** — ya está incluido en `.gitignore`.
 
-> El archivo `.env` se carga automáticamente gracias a `python-dotenv` en `main.py`.
+### 5. Arrancar backend y frontend
 
-### 5. Arrancar el backend
+Necesitas **dos terminales** abiertas simultáneamente:
 
+**Terminal 1 — Backend (puerto 8000):**
 ```bash
 uvicorn main:app --reload
 ```
 
-El servidor quedará escuchando en **http://127.0.0.1:8000**.
-
-### 6. Arrancar el frontend estático
-
-Abre `index.html` directamente en el navegador, o usa cualquier servidor estático. Por ejemplo con Python:
-
+**Terminal 2 — Frontend (puerto 5500):**
 ```bash
 python -m http.server 5500
 ```
 
-Luego accede a **http://localhost:5500**.
+### 6. Abrir la aplicación
 
-> **Importante:** Para desarrollo local, cambia `API_BASE` en `app.js` de la URL de producción a tu servidor local:
-> ```js
-> const API_BASE = "http://127.0.0.1:8000";
-> ```
+Abre **http://localhost:5500** en el navegador.
 
 ---
 
-### Comprobaciones rápidas de salud
+### Comprobaciones rápidas
 
 | Comprobación | Cómo verificar | Respuesta esperada |
 |---|---|---|
-| Backend activo | `GET http://127.0.0.1:8000/` | JSON con `"status": "ok"` y lista de endpoints |
-| Documentación interactiva | Abrir `http://127.0.0.1:8000/docs` en el navegador | Swagger UI de FastAPI |
-| Frontend → Backend | Abrir el frontend en el navegador; el indicador de conexión debe mostrar **"✓ Servidor listo"** | Estado verde en la interfaz |
-
-Prueba rápida desde terminal:
-
-```bash
-curl http://127.0.0.1:8000/
-```
-
-Respuesta esperada:
-```json
-{
-  "status": "ok",
-  "docs": "/docs",
-  "modelo": "gemini-2.0-flash",
-  "ia_activa": true,
-  "endpoints": ["/usuarios", "/notas", "/estadisticas", "/clasificar", "/categorias"]
-}
-```
+| Backend activo | `GET http://127.0.0.1:8000/` | JSON con `"status": "ok"` |
+| Documentación interactiva | Abrir `http://127.0.0.1:8000/docs` | Swagger UI de FastAPI |
+| Frontend conectado | Abrir `http://localhost:5500` | Indicador **"✓ Servidor listo"** en verde |
 
 ---
 
 ### Troubleshooting
 
-| Problema | Causa probable | Solución |
-|---|---|---|
-| `'uvicorn' no se reconoce como nombre de un cmdlet` | El entorno virtual no está activado o uvicorn no está instalado | Activa el entorno (`.venv\Scripts\Activate`) y ejecuta `pip install -r requirements.txt` |
-| `ERROR: [Errno 10048] address already in use` | El puerto 8000 ya está ocupado | Usa otro puerto: `uvicorn main:app --reload --port 8001` |
-| La clasificación devuelve siempre `"otras"` con confianza `0.0` | Falta `OPENAI_API_KEY` en el archivo `.env` | Crea o revisa el archivo `.env` con una clave válida |
-| El frontend muestra "✗ Sin conexión" | `API_BASE` en `app.js` apunta a la URL de producción en lugar de `localhost` | Cambia `API_BASE` a `"http://127.0.0.1:8000"` en `app.js` |
-| Error de CORS al hacer peticiones desde el frontend | El navegador bloquea peticiones cross-origin | Verifica que el backend esté corriendo y que `API_BASE` coincida con el origen del servidor. El middleware CORS en `main.py` ya permite todos los orígenes (`"*"`) |
+| Problema | Solución |
+|---|---|
+| `'uvicorn' no se reconoce` | Activa el entorno virtual y ejecuta `pip install -r requirements.txt` |
+| `address already in use` | Usa otro puerto: `uvicorn main:app --reload --port 8001` |
+| Clasificación devuelve siempre `"otras"` | Revisa que el archivo `.env` tenga una `OPENAI_API_KEY` válida |
+| Frontend muestra "✗ Sin conexión" | Comprueba que el backend esté corriendo en el puerto 8000 |
 
 ---
 
