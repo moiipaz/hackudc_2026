@@ -80,11 +80,11 @@ class ClasificarRequest(BaseModel):
 
 
 # =========================
-# 📌 CLASIFICADOR IA (Claude)
+# 📌 CLASIFICADOR IA (OpenAI)
 # =========================
 
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
-ANTHROPIC_MODEL   = os.getenv("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001")  # rápido y barato
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_MODEL   = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")  # rápido y barato
 
 SYSTEM_PROMPT = f"""Eres un clasificador de notas personales.
 Dada una descripción, devuelve SOLO un JSON con este formato exacto (sin texto adicional, sin markdown):
@@ -122,38 +122,32 @@ Devuelve SOLO el JSON válido."""
 
 
 async def classify_note(descripcion: str) -> dict:
-    """Clasifica una nota usando la API de Anthropic (Claude). Fallback a 'otras' si falla."""
-    if not ANTHROPIC_API_KEY:
-        return {"tipo": "otras", "confianza": 0.0, "motivo": "Sin ANTHROPIC_API_KEY configurada"}
+    """Clasifica una nota usando OpenAI. Fallback a 'otras' si falla."""
+    if not OPENAI_API_KEY:
+        return {"tipo": "otras", "confianza": 0.0, "motivo": "Sin OPENAI_API_KEY configurada"}
 
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
             response = await client.post(
-                "https://api.anthropic.com/v1/messages",
+                "https://api.openai.com/v1/chat/completions",
                 headers={
-                    "x-api-key": ANTHROPIC_API_KEY,
-                    "anthropic-version": "2023-06-01",
-                    "content-type": "application/json",
+                    "Authorization": f"Bearer {OPENAI_API_KEY}",
+                    "Content-Type": "application/json",
                 },
                 json={
-                    "model": ANTHROPIC_MODEL,
+                    "model": OPENAI_MODEL,
                     "max_tokens": 150,
-                    "system": SYSTEM_PROMPT,
+                    "temperature": 0,
+                    "response_format": {"type": "json_object"},
                     "messages": [
-                        {"role": "user", "content": descripcion}
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user",   "content": descripcion},
                     ],
                 },
             )
             response.raise_for_status()
             data = response.json()
-            content = data["content"][0]["text"].strip()
-
-            # Limpiar posibles backticks que el modelo añada
-            if content.startswith("```"):
-                content = content.split("```")[1]
-                if content.startswith("json"):
-                    content = content[4:]
-            content = content.strip()
+            content = data["choices"][0]["message"]["content"].strip()
 
             result = json.loads(content)
 
@@ -357,6 +351,6 @@ def root():
     return {
         "status": "ok",
         "docs":   "/docs",
-        "modelo": ANTHROPIC_MODEL,
+        "modelo": OPENAI_MODEL,
         "endpoints": ["/usuarios", "/notas", "/estadisticas", "/clasificar", "/categorias"]
     }
