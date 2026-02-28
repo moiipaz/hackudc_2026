@@ -283,3 +283,11 @@ def obtener_estadisticas():
             "sin_notas": len(usuarios) - len(set(n["usuario_id"] for n in notas))
         }
     }
+
+@app.get("/")
+def root():
+    return {
+        "status": "ok",
+        "docs": "/docs",
+        "endpoints": ["/usuarios", "/notas", "/estadisticas"]
+    }
