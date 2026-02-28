@@ -1,5 +1,5 @@
 // Cambia esto si despliegas tu backend en Render/Fly/etc.
-const API_BASE = "http://127.0.0.1:8000";
+const API_BASE = "https://hackudc-2026.onrender.com";
 
 const $ = (sel) => document.querySelector(sel);
 
