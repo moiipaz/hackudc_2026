@@ -10,16 +10,34 @@ const contador = $("#contador");
 const buscador = $("#buscador");
 const filtroTipo = $("#filtroTipo");
 
-$("#btnRecargar").addEventListener("click", () => cargarNotas());
-
-buscador.addEventListener("input", () => renderUltimas());
-filtroTipo.addEventListener("change", () => renderUltimas());
+// ---- NUEVO: UI usuarios ----
+const usuarioSelect = $("#usuarioSelect");
+const usuarioActivoBadge = $("#usuarioActivoBadge");
+const btnCrearUsuario = $("#btnCrearUsuario");
+const btnCargarUsuarios = $("#btnCargarUsuarios");
 
 let cacheNotas = [];
+let cacheUsuarios = [];
 
 function setMsg(text, isError = false){
   msg.textContent = text;
   msg.style.color = isError ? "rgba(251,113,133,.95)" : "rgba(255,255,255,.65)";
+}
+
+function setUsuarioBadge(){
+  const id = getUsuarioId();
+  const u = cacheUsuarios.find(x => x.identificador === id);
+  usuarioActivoBadge.textContent = u ? `${u.nombre}` : "Sin usuario";
+}
+
+function getUsuarioId(){
+  return usuarioSelect?.value || localStorage.getItem("usuario_id") || "";
+}
+
+function setUsuarioId(id){
+  if (usuarioSelect) usuarioSelect.value = id;
+  localStorage.setItem("usuario_id", id);
+  setUsuarioBadge();
 }
 
 function toNiceDate(isoOrDate){
@@ -49,7 +67,6 @@ async function apiFetch(path, options = {}){
     throw new Error(`HTTP ${res.status}: ${detail || "Error"}`);
   }
 
-  // DELETE puede devolver json simple; GET/POST devuelven json
   const ct = res.headers.get("content-type") || "";
   if (ct.includes("application/json")) return res.json();
   return res.text();
@@ -123,7 +140,6 @@ function render(notas){
     pillFecha.textContent = `fecha: ${toNiceDate(n.fecha)}`;
 
     meta.append(pillTipo, pillAutor, pillPrioridad, pillFecha);
-
     title.append(desc, meta);
 
     const btn = document.createElement("button");
@@ -151,10 +167,56 @@ function renderUltimas(){
   render(filtradas);
 }
 
+// ---- NUEVO: cargar usuarios ----
+async function cargarUsuarios(){
+  try{
+    const usuarios = await apiFetch("/usuarios");
+    cacheUsuarios = Array.isArray(usuarios) ? usuarios : [];
+
+    usuarioSelect.innerHTML = "";
+    if (cacheUsuarios.length === 0){
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = "No hay usuarios (crea uno)";
+      usuarioSelect.appendChild(opt);
+      setUsuarioBadge();
+      return;
+    }
+
+    for (const u of cacheUsuarios){
+      const opt = document.createElement("option");
+      opt.value = u.identificador;
+      opt.textContent = `${u.nombre} (${u.email})`;
+      usuarioSelect.appendChild(opt);
+    }
+
+    // recuperar último usuario
+    const saved = localStorage.getItem("usuario_id");
+    const existe = saved && cacheUsuarios.some(u => u.identificador === saved);
+
+    if (existe) {
+      setUsuarioId(saved);
+    } else {
+      setUsuarioId(cacheUsuarios[0].identificador);
+    }
+  }catch(e){
+    setMsg(e.message, true);
+  }
+}
+
+// ---- NUEVO: cargar notas del usuario activo ----
 async function cargarNotas(){
   try{
+    const usuario_id = getUsuarioId();
+    if (!usuario_id){
+      cacheNotas = [];
+      setMsg("Crea/selecciona un usuario para ver notas.", true);
+      renderUltimas();
+      return;
+    }
+
     setMsg("Cargando...");
-    const notas = await apiFetch("/notas");
+    const notas = await apiFetch(`/usuarios/${encodeURIComponent(usuario_id)}/notas`);
     cacheNotas = Array.isArray(notas) ? notas : [];
     setMsg(`Cargadas ${cacheNotas.length} notas.`);
     renderUltimas();
@@ -163,9 +225,62 @@ async function cargarNotas(){
   }
 }
 
+// ---- eventos UI existentes ----
+$("#btnRecargar").addEventListener("click", () => cargarNotas());
+buscador.addEventListener("input", () => renderUltimas());
+filtroTipo.addEventListener("change", () => renderUltimas());
+
+// ---- NUEVO: eventos usuarios ----
+btnCargarUsuarios.addEventListener("click", async () => {
+  await cargarUsuarios();
+  await cargarNotas();
+});
+
+btnCrearUsuario.addEventListener("click", async () => {
+  const nombre = $("#uNombre").value.trim();
+  const email = $("#uEmail").value.trim();
+
+  if (!nombre || !email){
+    setMsg("Falta nombre o email para crear el usuario.", true);
+    return;
+  }
+
+  try{
+    setMsg("Creando usuario...");
+    const u = await apiFetch("/usuarios", {
+      method: "POST",
+      body: JSON.stringify({ nombre, email }),
+    });
+
+    // refrescar lista y seleccionar el nuevo
+    await cargarUsuarios();
+    if (u?.identificador) setUsuarioId(u.identificador);
+
+    $("#uNombre").value = "";
+    $("#uEmail").value = "";
+
+    setMsg("Usuario creado.");
+    await cargarNotas();
+  }catch(e){
+    setMsg(e.message, true);
+  }
+});
+
+usuarioSelect.addEventListener("change", async () => {
+  setUsuarioId(usuarioSelect.value);
+  await cargarNotas();
+});
+
+// ---- submit nota (con usuario_id) ----
 form.addEventListener("submit", async (ev) => {
   ev.preventDefault();
   setMsg("");
+
+  const usuario_id = getUsuarioId();
+  if (!usuario_id){
+    setMsg("Selecciona o crea un usuario antes de crear una nota.", true);
+    return;
+  }
 
   const descripcion = $("#descripcion").value.trim();
   const tipo = $("#tipo").value;
@@ -178,7 +293,7 @@ form.addEventListener("submit", async (ev) => {
     ...(prioridadRaw !== "" ? { prioridad: Number(prioridadRaw) } : {}),
   };
 
-  const payload = { descripcion, metadato };
+  const payload = { usuario_id, descripcion, metadato };
 
   try{
     setMsg("Creando...");
@@ -199,4 +314,8 @@ form.addEventListener("submit", async (ev) => {
 });
 
 // Inicio
-cargarNotas();
+(async function init(){
+  await cargarUsuarios();
+  setUsuarioBadge();
+  await cargarNotas();
+})();
