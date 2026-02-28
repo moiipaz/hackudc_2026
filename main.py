@@ -73,7 +73,7 @@ class UsuarioLogin(BaseModel):
 class ClasificarRequest(BaseModel):
     texto: str
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 GEMINI_MODEL   = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
 
 SYSTEM_PROMPT = """Eres un clasificador de notas personales.
@@ -110,55 +110,44 @@ Reglas de clasificación:
 
 Devuelve SOLO el JSON válido, sin backticks ni texto extra."""
 
-
 async def classify_note(descripcion: str) -> dict:
     if not GEMINI_API_KEY:
-        return {"tipo": "otras", "confianza": 0.0, "motivo": "Sin GEMINI_API_KEY en .env"}
-
+        return {"tipo": "otras", "confianza": 0.0, "motivo": "Sin OPENAI_API_KEY en entorno"}
     try:
-        url = (
-            f"https://generativelanguage.googleapis.com/v1beta/models/"
-            f"{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
-        )
-        payload = {
-            "system_instruction": {"parts": [{"text": SYSTEM_PROMPT}]},
-            "contents": [{"parts": [{"text": descripcion}]}],
-            "generationConfig": {
-                "temperature": 0,
-                "maxOutputTokens": 150,
-                "responseMimeType": "application/json",
-            },
-        }
-
         async with httpx.AsyncClient(timeout=15.0) as client:
-            response = await client.post(url, json=payload)
+            response = await client.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {GEMINI_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": GEMINI_MODEL,
+                    "temperature": 0,
+                    "max_tokens": 150,
+                    "response_format": {"type": "json_object"},
+                    "messages": [
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user",   "content": descripcion},
+                    ],
+                },
+            )
             response.raise_for_status()
             data = response.json()
-
-        content = data["candidates"][0]["content"]["parts"][0]["text"].strip()
-
-        if content.startswith("```"):
-            content = content.split("```")[1]
-            if content.startswith("json"):
-                content = content[4:]
-        content = content.strip()
-
+        content = data["choices"][0]["message"]["content"].strip()
         result = json.loads(content)
         tipo = result.get("tipo", "otras").strip().lower()
         if tipo not in CATEGORIAS:
             tipo = "otras"
-
         return {
             "tipo":      tipo,
             "confianza": float(result.get("confianza", 0.8)),
             "motivo":    result.get("motivo", ""),
         }
-
     except json.JSONDecodeError as e:
         return {"tipo": "otras", "confianza": 0.0, "motivo": f"JSON inválido: {str(e)[:60]}"}
     except Exception as e:
         return {"tipo": "otras", "confianza": 0.0, "motivo": f"Error: {str(e)[:80]}"}
-
 
 def leer_json(filepath: str) -> list:
     if not os.path.exists(filepath):
