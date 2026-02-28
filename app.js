@@ -1,7 +1,59 @@
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
+
 const API_BASE = "https://hackudc-2026.onrender.com";
 const $ = (sel) => document.querySelector(sel);
 
+// Iconos por categoría
+const CATEGORY_ICONS = {
+  youtube:         "▶",
+  audios:          "🎙",
+  recordatorios:   "🔔",
+  codigo:          "</>",
+  personal:        "👤",
+  trabajo:         "💼",
+  estudios:        "📚",
+  salud:           "❤",
+  compra:          "🛒",
+  tareas:          "✓",
+  ideas:           "💡",
+  lectura:         "📖",
+  peliculas_series:"🎬",
+  eventos:         "📅",
+  contactos:       "👥",
+  recetas:         "🍳",
+  musica:          "🎵",
+  metas:           "🎯",
+  tecnologia:      "⚙",
+  inspiraciones:   "✨",
+  otras:           "•",
+};
+
+// Colores por categoría
+const CATEGORY_COLORS = {
+  youtube:         "rgba(255,0,0,.18)",
+  audios:          "rgba(168,85,247,.18)",
+  recordatorios:   "rgba(251,191,36,.18)",
+  codigo:          "rgba(34,211,238,.18)",
+  personal:        "rgba(99,102,241,.18)",
+  trabajo:         "rgba(59,130,246,.18)",
+  estudios:        "rgba(16,185,129,.18)",
+  salud:           "rgba(239,68,68,.18)",
+  compra:          "rgba(245,158,11,.18)",
+  tareas:          "rgba(107,114,128,.18)",
+  ideas:           "rgba(234,179,8,.18)",
+  lectura:         "rgba(14,165,233,.18)",
+  peliculas_series:"rgba(217,70,239,.18)",
+  eventos:         "rgba(20,184,166,.18)",
+  contactos:       "rgba(168,162,158,.18)",
+  recetas:         "rgba(234,88,12,.18)",
+  musica:          "rgba(236,72,153,.18)",
+  metas:           "rgba(34,197,94,.18)",
+  tecnologia:      "rgba(6,182,212,.18)",
+  inspiraciones:   "rgba(251,146,60,.18)",
+  otras:           "rgba(148,163,184,.18)",
+};
+
+/* ---- elementos ---- */
 const pageAuth   = $("#pageAuth");
 const pageApp    = $("#pageApp");
 const tabLogin        = $("#tabLogin");
@@ -37,19 +89,19 @@ async function wakeUpServer() {
       setTimeout(() => { serverStatus.textContent = ""; }, 3000);
     }
   } catch(e) {
-    serverStatus.textContent = "✗ Sin conexión. Espera unos segundos y recarga la página.";
+    serverStatus.textContent = "✗ Sin conexión. Espera unos segundos y recarga.";
     serverStatus.style.color = "rgba(224,92,115,.9)";
   }
 }
 
 /* --- NAVEGACIÓN --- */
 function irAAuth() {
-  pageApp.style.display = "none";
+  pageApp.style.display  = "none";
   pageAuth.style.display = "";
 }
 function irAApp() {
   pageAuth.style.display = "none";
-  pageApp.style.display = "";
+  pageApp.style.display  = "";
   usuarioActivoBadge.textContent = usuarioActivo?.nombre ?? "";
   cargarNotas();
 }
@@ -161,20 +213,25 @@ btnLogout.addEventListener("click", cerrarSesion);
 function normalizaTexto(s) { return (s ?? "").toString().toLowerCase(); }
 
 function aplicaFiltros(notas) {
-  const q = normalizaTexto(buscador.value);
+  const q    = normalizaTexto(buscador.value);
   const tipo = filtroTipo.value;
   return notas.filter(n => {
     const hayTipo  = !tipo || n?.metadato?.tipo === tipo;
-    const hayQuery = !q || [n?.descripcion, n?.metadato?.autor, n?.metadato?.tipo, n?.identificador].some(v => normalizaTexto(v).includes(q));
+    const hayQuery = !q || [n?.descripcion, n?.metadato?.autor, n?.metadato?.tipo, n?.identificador]
+      .some(v => normalizaTexto(v).includes(q));
     return hayTipo && hayQuery;
   });
 }
 
-function toNiceDate(d) { try { return new Date(d).toLocaleString(); } catch { return String(d); } }
+function toNiceDate(d) {
+  try { return new Date(d).toLocaleString(); }
+  catch { return String(d); }
+}
 
 function render(notas) {
   contador.textContent = String(notas.length);
   lista.innerHTML = "";
+
   if (notas.length === 0) {
     const e = document.createElement("div");
     e.style.cssText = "color:rgba(255,255,255,.3);font-size:13px;padding:12px 0;";
@@ -182,28 +239,76 @@ function render(notas) {
     lista.appendChild(e);
     return;
   }
+
   for (const n of notas) {
-    const item = document.createElement("div"); item.className = "item";
-    const top = document.createElement("div"); top.className = "itemTop";
-    const title = document.createElement("div"); title.className = "itemTitle";
-    const desc = document.createElement("div"); desc.className = "desc"; desc.textContent = n.descripcion ?? "";
-    const meta = document.createElement("div"); meta.className = "meta";
-    for (const t of [
-      "tipo: " + (n?.metadato?.tipo ?? "-"),
-      "autor: " + (n?.metadato?.autor ?? "-"),
-      "prioridad: " + (n?.metadato?.prioridad ?? "-"),
+    const tipo  = n?.metadato?.tipo ?? "otras";
+    const icon  = CATEGORY_ICONS[tipo]  ?? "•";
+    const color = CATEGORY_COLORS[tipo] ?? "rgba(148,163,184,.18)";
+
+    const item = document.createElement("div");
+    item.className = "item";
+
+    const top = document.createElement("div");
+    top.className = "itemTop";
+
+    const title = document.createElement("div");
+    title.className = "itemTitle";
+
+    const desc = document.createElement("div");
+    desc.className = "desc";
+    desc.textContent = n.descripcion ?? "";
+
+    const meta = document.createElement("div");
+    meta.className = "meta";
+
+    // Badge de categoría (destacado)
+    const badgeTipo = document.createElement("span");
+    badgeTipo.className = "pill pill-tipo";
+    badgeTipo.style.background   = color;
+    badgeTipo.style.borderColor  = color.replace(".18", ".45");
+    badgeTipo.style.color        = "rgba(255,255,255,.9)";
+    badgeTipo.textContent        = icon + " " + tipo;
+    meta.appendChild(badgeTipo);
+
+    // Resto de pills
+    const extraPills = [
+      n?.metadato?.autor     ? "autor: " + n.metadato.autor           : null,
+      n?.metadato?.prioridad ? "prioridad: " + n.metadato.prioridad   : null,
       "fecha: " + toNiceDate(n.fecha),
-    ]) {
-      const p = document.createElement("span"); p.className = "pill"; p.textContent = t; meta.appendChild(p);
+    ].filter(Boolean);
+
+    for (const t of extraPills) {
+      const p = document.createElement("span");
+      p.className = "pill";
+      p.textContent = t;
+      meta.appendChild(p);
     }
+
+    // Motivo IA (si existe y confianza < 0.9, mostrar sutil)
+    if (n?.metadato?.ia_motivo && n?.metadato?.ia_confianza < 0.9) {
+      const motivo = document.createElement("span");
+      motivo.className = "pill pill-ia";
+      motivo.textContent = "IA: " + n.metadato.ia_motivo;
+      meta.appendChild(motivo);
+    }
+
     title.append(desc, meta);
-    const btn = document.createElement("button"); btn.className = "danger"; btn.textContent = "Borrar";
+
+    const btn = document.createElement("button");
+    btn.className = "danger";
+    btn.textContent = "Borrar";
     btn.addEventListener("click", async () => {
       if (!confirm("¿Borrar esta nota?")) return;
-      try { await apiFetch("/notas/" + encodeURIComponent(n.identificador), { method: "DELETE" }); setMsg("Nota eliminada."); await cargarNotas(); }
-      catch(e) { setMsg(e.message, true); }
+      try {
+        await apiFetch("/notas/" + encodeURIComponent(n.identificador), { method: "DELETE" });
+        setMsg("Nota eliminada.");
+        await cargarNotas();
+      } catch(e) { setMsg(e.message, true); }
     });
-    top.append(title, btn); item.append(top); lista.append(item);
+
+    top.append(title, btn);
+    item.append(top);
+    lista.append(item);
   }
 }
 
@@ -220,29 +325,42 @@ async function cargarNotas() {
   } catch(e) { setMsg(errorMsg(e), true); }
 }
 
-buscador.addEventListener("input", renderFiltradas);
+buscador.addEventListener("input",    renderFiltradas);
 filtroTipo.addEventListener("change", renderFiltradas);
 $("#btnRecargar").addEventListener("click", cargarNotas);
 
 form.addEventListener("submit", async (ev) => {
   ev.preventDefault();
   if (!usuarioActivo?.identificador) return;
+
   const descripcion  = $("#descripcion").value.trim();
-  const tipo         = $("#tipo").value;
   const autorRaw     = $("#autor").value.trim();
   const prioridadRaw = $("#prioridad").value.trim();
-  const metadato = { tipo, ...(autorRaw ? { autor: autorRaw } : {}), ...(prioridadRaw ? { prioridad: Number(prioridadRaw) } : {}) };
-  setMsg("Creando nota...");
+
+  if (!descripcion) { setMsg("Escribe una descripción.", true); return; }
+
+  const metadato = {
+    tipo: "otras",   // el backend lo sobreescribirá con la clasificación IA
+    ...(autorRaw     ? { autor: autorRaw }                : {}),
+    ...(prioridadRaw ? { prioridad: Number(prioridadRaw) } : {}),
+  };
+
+  setMsg("⏳ Clasificando con IA y guardando...");
   try {
-    await apiFetch("/notas", { method: "POST", body: JSON.stringify({ usuario_id: usuarioActivo.identificador, descripcion, metadato }) });
-    $("#descripcion").value = ""; $("#autor").value = ""; $("#prioridad").value = "";
-    setMsg("Nota creada.");
+    await apiFetch("/notas", {
+      method: "POST",
+      body: JSON.stringify({ usuario_id: usuarioActivo.identificador, descripcion, metadato }),
+    });
+    $("#descripcion").value = "";
+    $("#autor").value       = "";
+    $("#prioridad").value   = "";
+    setMsg("✓ Nota creada y clasificada.");
     await cargarNotas();
   } catch(e) { setMsg(errorMsg(e), true); }
 });
 
 /* --- INIT --- */
-(function() {
+(function () {
   const sesion = cargarSesion();
   if (sesion?.identificador) {
     usuarioActivo = sesion;
@@ -252,4 +370,5 @@ form.addEventListener("submit", async (ev) => {
     wakeUpServer();
   }
 })();
-});
+
+}); // fin DOMContentLoaded
