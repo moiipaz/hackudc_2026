@@ -5,12 +5,13 @@ from uuid import uuid4
 from datetime import datetime
 import json
 import os
+import bcrypt
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
     title="API de Notas Personales",
     description="Sistema para gestionar usuarios y sus notas privadas",
-    version="2.0.0"
+    version="3.0.0"
 )
 
 app.add_middleware(
@@ -30,12 +31,12 @@ USUARIOS_FILE = "usuarios.json"
 
 class Metadato(BaseModel):
     tipo: str = Field(..., example="personal", description="Tipo: personal, trabajo, estudio")
-    autor: Optional[str] = Field(None, example="Juan", description="Autor de la nota")
-    prioridad: Optional[int] = Field(None, ge=1, le=5, example=3, description="Prioridad 1-5")
+    autor: Optional[str] = Field(None, example="Juan")
+    prioridad: Optional[int] = Field(None, ge=1, le=5, example=3)
 
 class NotaBase(BaseModel):
-    usuario_id: str = Field(..., example="uuid-del-usuario")
-    descripcion: str = Field(..., example="Comprar leche")
+    usuario_id: str
+    descripcion: str
     metadato: Metadato
 
 class Nota(NotaBase):
@@ -49,12 +50,16 @@ class UsuarioBase(BaseModel):
     nombre: str = Field(..., example="Ana García")
     email: EmailStr = Field(..., example="ana@email.com")
 
+class UsuarioCreate(UsuarioBase):
+    password: str = Field(..., example="micontraseña123", min_length=6)
+
 class Usuario(UsuarioBase):
     identificador: str
     fecha_registro: datetime
 
-class UsuarioCreate(UsuarioBase):
-    pass
+class UsuarioLogin(BaseModel):
+    email: EmailStr
+    password: str
 
 # =========================
 # 📌 FUNCIONES AUXILIARES
@@ -71,19 +76,28 @@ def guardar_json(filepath: str, data: list) -> None:
     with open(filepath, "w") as f:
         json.dump(data, f, indent=4, default=str)
 
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+def verify_password(password: str, hashed: str) -> bool:
+    return bcrypt.checkpw(password.encode("utf-8"), hashed.encode("utf-8"))
+
 # =========================
 # 📌 ENDPOINTS - USUARIOS
 # =========================
 
 @app.get("/usuarios", response_model=List[Usuario], tags=["Usuarios"])
 def obtener_usuarios():
-    return leer_json(USUARIOS_FILE)
+    return [
+        {k: v for k, v in u.items() if k != "password_hash"}
+        for u in leer_json(USUARIOS_FILE)
+    ]
 
 @app.get("/usuarios/{identificador}", response_model=Usuario, tags=["Usuarios"])
 def obtener_usuario(identificador: str):
-    for usuario in leer_json(USUARIOS_FILE):
-        if usuario["identificador"] == identificador:
-            return usuario
+    for u in leer_json(USUARIOS_FILE):
+        if u["identificador"] == identificador:
+            return {k: v for k, v in u.items() if k != "password_hash"}
     raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
 @app.post("/usuarios", response_model=Usuario, tags=["Usuarios"], status_code=201)
@@ -97,11 +111,27 @@ def crear_usuario(usuario: UsuarioCreate):
         "identificador": str(uuid4()),
         "nombre": usuario.nombre,
         "email": usuario.email,
+        "password_hash": hash_password(usuario.password),
         "fecha_registro": datetime.now().isoformat()
     }
     usuarios.append(nuevo)
     guardar_json(USUARIOS_FILE, usuarios)
-    return nuevo
+    return {k: v for k, v in nuevo.items() if k != "password_hash"}
+
+@app.post("/usuarios/login", tags=["Usuarios"])
+def login_usuario(datos: UsuarioLogin):
+    for u in leer_json(USUARIOS_FILE):
+        if u["email"] == datos.email:
+            if verify_password(datos.password, u["password_hash"]):
+                return {
+                    "mensaje": "Login correcto",
+                    "identificador": u["identificador"],
+                    "nombre": u["nombre"],
+                    "email": u["email"]
+                }
+            else:
+                raise HTTPException(status_code=401, detail="Contraseña incorrecta")
+    raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
 @app.delete("/usuarios/{identificador}", tags=["Usuarios"])
 def eliminar_usuario(identificador: str):
