@@ -16,13 +16,10 @@ app = FastAPI(
 # Configurar CORS para tu frontend en GitHub Pages
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://moiipaz.github.io",
-        "http://moiipaz.github.io",
-    ],
-    allow_credentials=True,
+    allow_origins=["https://moiipaz.github.io"],
     allow_methods=["*"],
     allow_headers=["*"],
+    allow_credentials=False,
 )
 
 # Archivos de base de datos
