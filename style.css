@@ -167,3 +167,41 @@ button.danger{
 }
 
 .footer{ margin-top: 10px; padding-bottom: 20px; }
+
+/* AUTH */
+.authWrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.authCard {
+  width: min(420px, calc(100% - 32px));
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 32px;
+  backdrop-filter: blur(10px);
+}
+.authCard h1 { margin: 0 0 4px; font-size: 26px; }
+.authCard label {
+  display: block;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.tabBtn {
+  flex: 1;
+  background: rgba(255,255,255,.07);
+  border: 1px solid var(--border);
+}
+.tabBtn.active {
+  background: rgba(125,211,252,.18);
+  border-color: rgba(125,211,252,.4);
+  color: var(--accent);
+}
