@@ -1,69 +1,82 @@
-// Cambia esto si despliegas tu backend en Render/Fly/etc.
 const API_BASE = "https://hackudc-2026.onrender.com";
-
 const $ = (sel) => document.querySelector(sel);
 
-const form          = $("#formNota");
-const msg           = $("#msg");
-const lista         = $("#lista");
-const contador      = $("#contador");
-const buscador      = $("#buscador");
-const filtroTipo    = $("#filtroTipo");
+/* ---- elementos ---- */
+const pageAuth   = $("#pageAuth");
+const pageApp    = $("#pageApp");
 
-// UI usuarios
-const usuarioSelect       = $("#usuarioSelect");
-const usuarioActivoBadge  = $("#usuarioActivoBadge");
-const btnCrearUsuario     = $("#btnCrearUsuario");
-const btnCargarUsuarios   = $("#btnCargarUsuarios");
-const btnLogin            = $("#btnLogin");
-const btnMostrarRegistro  = $("#btnMostrarRegistro");
-const btnCancelarRegistro = $("#btnCancelarRegistro");
-const panelLogin          = $("#panelLogin");
-const panelRegistro       = $("#panelRegistro");
-const msgLogin            = $("#msgLogin");
+// auth
+const tabLogin        = $("#tabLogin");
+const tabRegistro     = $("#tabRegistro");
+const panelLogin      = $("#panelLogin");
+const panelRegistro   = $("#panelRegistro");
+const btnLogin        = $("#btnLogin");
+const btnCrearUsuario = $("#btnCrearUsuario");
+const msgLogin        = $("#msgLogin");
+const msgRegistro     = $("#msgRegistro");
 
-let cacheNotas    = [];
-let cacheUsuarios = [];
+// app
+const form               = $("#formNota");
+const msg                = $("#msg");
+const lista              = $("#lista");
+const contador           = $("#contador");
+const buscador           = $("#buscador");
+const filtroTipo         = $("#filtroTipo");
+const usuarioActivoBadge = $("#usuarioActivoBadge");
+const btnLogout          = $("#btnLogout");
 
-/* ---- helpers ---- */
-function setMsg(text, isError = false) {
-  msg.textContent = text;
-  msg.style.color = isError ? "rgba(224,92,115,.9)" : "rgba(255,255,255,.45)";
+let cacheNotas   = [];
+let usuarioActivo = null;  // { identificador, nombre, email }
+
+/* ============================================================
+   NAVEGACIÓN
+   ============================================================ */
+function irAAuth() {
+  pageApp.style.display  = "none";
+  pageAuth.style.display = "";
+  // reset animación
+  pageAuth.style.animation = "none";
+  requestAnimationFrame(() => { pageAuth.style.animation = ""; });
 }
 
-function setMsgLogin(text, isError = false) {
-  msgLogin.textContent = text;
-  msgLogin.style.color = isError ? "rgba(224,92,115,.9)" : "rgba(74,222,128,.8)";
+function irAApp() {
+  pageAuth.style.display = "none";
+  pageApp.style.display  = "";
+  pageApp.style.animation = "none";
+  requestAnimationFrame(() => { pageApp.style.animation = ""; });
+  usuarioActivoBadge.textContent = usuarioActivo?.nombre ?? "Sin usuario";
+  cargarNotas();
 }
 
-function setUsuarioBadge() {
-  const id = getUsuarioId();
-  const u  = cacheUsuarios.find(x => x.identificador === id);
-  usuarioActivoBadge.textContent = u ? u.nombre : "Sin usuario";
+/* ============================================================
+   SESIÓN
+   ============================================================ */
+function guardarSesion(u) {
+  usuarioActivo = u;
+  localStorage.setItem("session", JSON.stringify(u));
 }
 
-function getUsuarioId() {
-  return usuarioSelect?.value || localStorage.getItem("usuario_id") || "";
+function cargarSesion() {
+  try {
+    const s = localStorage.getItem("session");
+    return s ? JSON.parse(s) : null;
+  } catch { return null; }
 }
 
-function setUsuarioId(id) {
-  if (usuarioSelect) usuarioSelect.value = id;
-  localStorage.setItem("usuario_id", id);
-  setUsuarioBadge();
+function cerrarSesion() {
+  usuarioActivo = null;
+  localStorage.removeItem("session");
+  irAAuth();
 }
 
-function toNiceDate(isoOrDate) {
-  try { return new Date(isoOrDate).toLocaleString(); }
-  catch { return String(isoOrDate); }
-}
-
+/* ============================================================
+   API
+   ============================================================ */
 async function apiFetch(path, options = {}) {
-  const url = `${API_BASE}${path}`;
-  const res = await fetch(url, {
+  const res = await fetch(`${API_BASE}${path}`, {
     headers: { "Content-Type": "application/json", ...(options.headers || {}) },
     ...options
   });
-
   if (!res.ok) {
     let detail = "";
     try {
@@ -72,12 +85,126 @@ async function apiFetch(path, options = {}) {
     } catch { detail = await res.text(); }
     throw new Error(`HTTP ${res.status}: ${detail || "Error"}`);
   }
-
   const ct = res.headers.get("content-type") || "";
-  if (ct.includes("application/json")) return res.json();
-  return res.text();
+  return ct.includes("application/json") ? res.json() : res.text();
 }
 
+/* ============================================================
+   MENSAJES
+   ============================================================ */
+function setMsg(text, isError = false) {
+  msg.textContent = text;
+  msg.style.color = isError ? "rgba(224,92,115,.9)" : "rgba(255,255,255,.45)";
+}
+
+function setMsgAuth(el, text, isError = false) {
+  el.textContent = text;
+  el.style.color = isError ? "rgba(224,92,115,.9)" : "rgba(74,222,128,.85)";
+}
+
+/* ============================================================
+   TABS AUTH
+   ============================================================ */
+tabLogin.addEventListener("click", () => {
+  tabLogin.classList.add("active");
+  tabRegistro.classList.remove("active");
+  panelLogin.style.display    = "";
+  panelRegistro.style.display = "none";
+  setMsgAuth(msgLogin, "");
+});
+
+tabRegistro.addEventListener("click", () => {
+  tabRegistro.classList.add("active");
+  tabLogin.classList.remove("active");
+  panelRegistro.style.display = "";
+  panelLogin.style.display    = "none";
+  setMsgAuth(msgRegistro, "");
+});
+
+/* ============================================================
+   LOGIN
+   ============================================================ */
+btnLogin.addEventListener("click", async () => {
+  const email    = $("#lEmail").value.trim();
+  const password = $("#lPassword").value;
+
+  if (!email || !password) {
+    setMsgAuth(msgLogin, "Introduce email y contraseña.", true);
+    return;
+  }
+
+  setMsgAuth(msgLogin, "Iniciando sesión...");
+  try {
+    const u = await apiFetch("/usuarios/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
+    guardarSesion({ identificador: u.identificador, nombre: u.nombre, email: u.email });
+    $("#lEmail").value    = "";
+    $("#lPassword").value = "";
+    irAApp();
+  } catch(e) {
+    if      (e.message.includes("401")) setMsgAuth(msgLogin, "Contraseña incorrecta.", true);
+    else if (e.message.includes("404")) setMsgAuth(msgLogin, "Usuario no encontrado.", true);
+    else    setMsgAuth(msgLogin, e.message, true);
+  }
+});
+
+// Login con Enter
+["lEmail", "lPassword"].forEach(id => {
+  $(` #${id}`);
+  document.getElementById(id)?.addEventListener("keydown", e => {
+    if (e.key === "Enter") btnLogin.click();
+  });
+});
+
+/* ============================================================
+   REGISTRO
+   ============================================================ */
+btnCrearUsuario.addEventListener("click", async () => {
+  const nombre   = $("#uNombre").value.trim();
+  const email    = $("#uEmail").value.trim();
+  const password = $("#uPassword").value;
+
+  if (!nombre || !email || !password) {
+    setMsgAuth(msgRegistro, "Rellena todos los campos.", true);
+    return;
+  }
+  if (password.length < 6) {
+    setMsgAuth(msgRegistro, "La contraseña debe tener al menos 6 caracteres.", true);
+    return;
+  }
+
+  setMsgAuth(msgRegistro, "Creando cuenta...");
+  try {
+    const u = await apiFetch("/usuarios", {
+      method: "POST",
+      body: JSON.stringify({ nombre, email, password }),
+    });
+    guardarSesion({ identificador: u.identificador, nombre: u.nombre, email: u.email });
+    $("#uNombre").value   = "";
+    $("#uEmail").value    = "";
+    $("#uPassword").value = "";
+    irAApp();
+  } catch(e) {
+    if (e.message.includes("400")) setMsgAuth(msgRegistro, "Ya existe una cuenta con ese email.", true);
+    else setMsgAuth(msgRegistro, e.message, true);
+  }
+});
+
+// Registro con Enter en último campo
+document.getElementById("uPassword")?.addEventListener("keydown", e => {
+  if (e.key === "Enter") btnCrearUsuario.click();
+});
+
+/* ============================================================
+   LOGOUT
+   ============================================================ */
+btnLogout.addEventListener("click", () => cerrarSesion());
+
+/* ============================================================
+   NOTAS
+   ============================================================ */
 function normalizaTexto(s) {
   return (s ?? "").toString().toLowerCase();
 }
@@ -93,7 +220,11 @@ function aplicaFiltros(notas) {
   });
 }
 
-/* ---- render notas ---- */
+function toNiceDate(isoOrDate) {
+  try { return new Date(isoOrDate).toLocaleString(); }
+  catch { return String(isoOrDate); }
+}
+
 function render(notas) {
   contador.textContent = String(notas.length);
   lista.innerHTML = "";
@@ -110,7 +241,7 @@ function render(notas) {
     const item = document.createElement("div");
     item.className = "item";
 
-    const top   = document.createElement("div");
+    const top = document.createElement("div");
     top.className = "itemTop";
 
     const title = document.createElement("div");
@@ -123,14 +254,12 @@ function render(notas) {
     const meta = document.createElement("div");
     meta.className = "meta";
 
-    const pills = [
+    for (const t of [
       `tipo: ${n?.metadato?.tipo ?? "-"}`,
       `autor: ${n?.metadato?.autor ?? "-"}`,
       `prioridad: ${n?.metadato?.prioridad ?? "-"}`,
       `fecha: ${toNiceDate(n.fecha)}`,
-    ];
-
-    for (const t of pills) {
+    ]) {
       const p = document.createElement("span");
       p.className = "pill";
       p.textContent = t;
@@ -157,183 +286,45 @@ function render(notas) {
   }
 }
 
-function renderUltimas() {
+function renderFiltradas() {
   render(aplicaFiltros(cacheNotas));
 }
 
-/* ---- cargar usuarios ---- */
-async function cargarUsuarios() {
-  try {
-    const usuarios = await apiFetch("/usuarios");
-    cacheUsuarios = Array.isArray(usuarios) ? usuarios : [];
-
-    usuarioSelect.innerHTML = "";
-    if (cacheUsuarios.length === 0) {
-      const opt = document.createElement("option");
-      opt.value = "";
-      opt.textContent = "No hay usuarios (crea uno)";
-      usuarioSelect.appendChild(opt);
-      setUsuarioBadge();
-      return;
-    }
-
-    for (const u of cacheUsuarios) {
-      const opt = document.createElement("option");
-      opt.value = u.identificador;
-      opt.textContent = `${u.nombre} (${u.email})`;
-      usuarioSelect.appendChild(opt);
-    }
-
-    const saved = localStorage.getItem("usuario_id");
-    const existe = saved && cacheUsuarios.some(u => u.identificador === saved);
-    setUsuarioId(existe ? saved : cacheUsuarios[0].identificador);
-  } catch(e) { setMsg(e.message, true); }
-}
-
-/* ---- cargar notas ---- */
 async function cargarNotas() {
+  if (!usuarioActivo?.identificador) return;
+  setMsg("Cargando...");
   try {
-    const usuario_id = getUsuarioId();
-    if (!usuario_id) {
-      cacheNotas = [];
-      setMsg("Crea/selecciona un usuario para ver notas.", true);
-      renderUltimas();
-      return;
-    }
-    setMsg("Cargando...");
-    const notas = await apiFetch(`/usuarios/${encodeURIComponent(usuario_id)}/notas`);
+    const notas = await apiFetch(`/usuarios/${encodeURIComponent(usuarioActivo.identificador)}/notas`);
     cacheNotas = Array.isArray(notas) ? notas : [];
-    setMsg(`Cargadas ${cacheNotas.length} nota${cacheNotas.length !== 1 ? "s" : ""}.`);
-    renderUltimas();
+    setMsg(`${cacheNotas.length} nota${cacheNotas.length !== 1 ? "s" : ""}.`);
+    renderFiltradas();
   } catch(e) { setMsg(e.message, true); }
 }
 
-/* ---- toggle paneles ---- */
-btnMostrarRegistro.addEventListener("click", () => {
-  panelRegistro.style.display = "block";
-  panelLogin.style.display    = "none";
-});
-
-btnCancelarRegistro.addEventListener("click", () => {
-  panelRegistro.style.display = "none";
-  panelLogin.style.display    = "block";
-});
-
-/* ---- LOGIN ---- */
-btnLogin.addEventListener("click", async () => {
-  const email    = $("#lEmail").value.trim();
-  const password = $("#lPassword").value;
-
-  if (!email || !password) {
-    setMsgLogin("Introduce email y contraseña.", true);
-    return;
-  }
-
-  try {
-    setMsgLogin("Iniciando sesión...", false);
-    const u = await apiFetch("/usuarios/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    });
-
-    await cargarUsuarios();
-    if (u?.identificador) setUsuarioId(u.identificador);
-
-    setMsgLogin(`¡Bienvenido, ${u.nombre}!`);
-    $("#lEmail").value    = "";
-    $("#lPassword").value = "";
-    await cargarNotas();
-  } catch(e) {
-    const msg401 = e.message.includes("401");
-    const msg404 = e.message.includes("404");
-    setMsgLogin(msg401 ? "Contraseña incorrecta." : msg404 ? "Usuario no encontrado." : e.message, true);
-  }
-});
-
-/* ---- CREAR USUARIO ---- */
-btnCrearUsuario.addEventListener("click", async () => {
-  const nombre   = $("#uNombre").value.trim();
-  const email    = $("#uEmail").value.trim();
-  const password = $("#uPassword").value;
-
-  if (!nombre || !email || !password) {
-    setMsg("Falta nombre, email o contraseña.", true);
-    return;
-  }
-  if (password.length < 6) {
-    setMsg("La contraseña debe tener al menos 6 caracteres.", true);
-    return;
-  }
-
-  try {
-    setMsg("Creando cuenta...");
-    const u = await apiFetch("/usuarios", {
-      method: "POST",
-      body: JSON.stringify({ nombre, email, password }),
-    });
-
-    await cargarUsuarios();
-    if (u?.identificador) setUsuarioId(u.identificador);
-
-    $("#uNombre").value   = "";
-    $("#uEmail").value    = "";
-    $("#uPassword").value = "";
-
-    // volver al panel de login
-    panelRegistro.style.display = "none";
-    panelLogin.style.display    = "block";
-
-    setMsgLogin(`Cuenta creada. ¡Bienvenido, ${u.nombre}!`);
-    await cargarNotas();
-  } catch(e) { setMsg(e.message, true); }
-});
-
-/* ---- recargar usuarios ---- */
-btnCargarUsuarios.addEventListener("click", async () => {
-  await cargarUsuarios();
-  await cargarNotas();
-});
-
-/* ---- cambio de usuario activo ---- */
-usuarioSelect.addEventListener("change", async () => {
-  setUsuarioId(usuarioSelect.value);
-  await cargarNotas();
-});
-
-/* ---- recargar notas ---- */
+buscador.addEventListener("input",   () => renderFiltradas());
+filtroTipo.addEventListener("change", () => renderFiltradas());
 $("#btnRecargar").addEventListener("click", () => cargarNotas());
 
-/* ---- filtros ---- */
-buscador.addEventListener("input", () => renderUltimas());
-filtroTipo.addEventListener("change", () => renderUltimas());
-
-/* ---- submit nota ---- */
 form.addEventListener("submit", async (ev) => {
   ev.preventDefault();
-  setMsg("");
+  if (!usuarioActivo?.identificador) return;
 
-  const usuario_id = getUsuarioId();
-  if (!usuario_id) {
-    setMsg("Selecciona o crea un usuario antes de crear una nota.", true);
-    return;
-  }
-
-  const descripcion   = $("#descripcion").value.trim();
-  const tipo          = $("#tipo").value;
-  const autorRaw      = $("#autor").value.trim();
-  const prioridadRaw  = $("#prioridad").value.trim();
+  const descripcion  = $("#descripcion").value.trim();
+  const tipo         = $("#tipo").value;
+  const autorRaw     = $("#autor").value.trim();
+  const prioridadRaw = $("#prioridad").value.trim();
 
   const metadato = {
     tipo,
-    ...(autorRaw      ? { autor:    autorRaw }               : {}),
-    ...(prioridadRaw  ? { prioridad: Number(prioridadRaw) }  : {}),
+    ...(autorRaw     ? { autor:    autorRaw }              : {}),
+    ...(prioridadRaw ? { prioridad: Number(prioridadRaw) } : {}),
   };
 
+  setMsg("Creando nota...");
   try {
-    setMsg("Creando nota...");
     await apiFetch("/notas", {
       method: "POST",
-      body: JSON.stringify({ usuario_id, descripcion, metadato }),
+      body: JSON.stringify({ usuario_id: usuarioActivo.identificador, descripcion, metadato }),
     });
     $("#descripcion").value = "";
     $("#autor").value       = "";
@@ -343,9 +334,15 @@ form.addEventListener("submit", async (ev) => {
   } catch(e) { setMsg(e.message, true); }
 });
 
-/* ---- init ---- */
-(async function init() {
-  await cargarUsuarios();
-  setUsuarioBadge();
-  await cargarNotas();
+/* ============================================================
+   INIT
+   ============================================================ */
+(function init() {
+  const sesion = cargarSesion();
+  if (sesion?.identificador) {
+    usuarioActivo = sesion;
+    irAApp();
+  } else {
+    irAAuth();
+  }
 })();
