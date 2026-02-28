@@ -19,8 +19,6 @@ app.add_middleware(
     allow_origins=[
         "https://moiipaz.github.io",
         "http://moiipaz.github.io",
-        "http://localhost:5500",  # Para desarrollo local
-        "http://127.0.0.1:5500",
     ],
     allow_credentials=True,
     allow_methods=["*"],
