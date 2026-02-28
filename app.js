@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', function () {
 
-const API_BASE = "https://hackudc-2026.onrender.com";
+const API_BASE = "http://127.0.0.1:8000";
 const $ = (sel) => document.querySelector(sel);
 
 // Iconos por categoría

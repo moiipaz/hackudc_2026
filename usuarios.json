@@ -1,1 +1,9 @@
-[]
+[
+    {
+        "identificador": "15bc5115-20f4-4d3e-8726-ba2b2d678331",
+        "nombre": "Moira Paz Fern\u00e1ndez",
+        "email": "moira.paz.fernandez@gmail.com",
+        "password_hash": "$2b$12$3w4bL8qOIenC8zS7P8erVuH/X5rPOdFyHkgSBjHvCOpRzbnUFGcgu",
+        "fecha_registro": "2026-02-28T20:58:45.843909"
+    }
+]

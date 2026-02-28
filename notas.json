@@ -1,1 +1,15 @@
-[]
+[
+    {
+        "identificador": "ea97aaf7-8c93-4e56-9ac8-63c3eb6d4cae",
+        "usuario_id": "15bc5115-20f4-4d3e-8726-ba2b2d678331",
+        "descripcion": "reunion viernes a las 10",
+        "fecha": "2026-02-28T20:59:01.873856",
+        "metadato": {
+            "tipo": "eventos",
+            "autor": null,
+            "prioridad": null,
+            "ia_confianza": 1.0,
+            "ia_motivo": "Menciona una reuni\u00f3n con fecha y hora espec\u00edfica."
+        }
+    }
+]

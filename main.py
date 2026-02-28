@@ -74,7 +74,7 @@ class ClasificarRequest(BaseModel):
     texto: str
 
 GEMINI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-GEMINI_MODEL   = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+GEMINI_MODEL   = os.getenv("GEMINI_MODEL", "gpt-4o-mini")
 
 SYSTEM_PROMPT = """Eres un clasificador de notas personales.
 Dada una descripción, devuelve SOLO un JSON con este formato exacto (sin texto adicional, sin markdown):
@@ -116,7 +116,7 @@ async def classify_note(descripcion: str) -> dict:
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
             response = await client.post(
-                "https://api.openai.com/v1/responses",
+                "https://api.openai.com/v1/chat/completions",
                 headers={
                     "Authorization": f"Bearer {GEMINI_API_KEY}",
                     "Content-Type": "application/json",
