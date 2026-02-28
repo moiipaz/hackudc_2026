@@ -116,7 +116,7 @@ async def classify_note(descripcion: str) -> dict:
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
             response = await client.post(
-                "https://api.openai.com/v1/chat/completions",
+                "https://api.openai.com/v1/responses",
                 headers={
                     "Authorization": f"Bearer {GEMINI_API_KEY}",
                     "Content-Type": "application/json",
