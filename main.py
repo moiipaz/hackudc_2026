@@ -80,11 +80,11 @@ class ClasificarRequest(BaseModel):
 
 
 # =========================
-# 📌 CLASIFICADOR IA (OpenAI)
+# 📌 CLASIFICADOR IA (Google Gemini)
 # =========================
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-OPENAI_MODEL   = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")  # rápido y barato
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "AIzaSyCYGZ2zgZYVwdzzwNvvpIZLXMgtdNjVlYg")
+GEMINI_MODEL   = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
 
 SYSTEM_PROMPT = f"""Eres un clasificador de notas personales.
 Dada una descripción, devuelve SOLO un JSON con este formato exacto (sin texto adicional, sin markdown):
@@ -122,39 +122,30 @@ Devuelve SOLO el JSON válido."""
 
 
 async def classify_note(descripcion: str) -> dict:
-    """Clasifica una nota usando OpenAI. Fallback a 'otras' si falla."""
-    if not OPENAI_API_KEY:
-        return {"tipo": "otras", "confianza": 0.0, "motivo": "Sin OPENAI_API_KEY configurada"}
+    """Clasifica una nota usando Google Gemini. Fallback a 'otras' si falla."""
+    if not GEMINI_API_KEY:
+        return {"tipo": "otras", "confianza": 0.0, "motivo": "Sin GEMINI_API_KEY configurada"}
 
     try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
+        payload = {
+            "contents": [
+                {"role": "user", "parts": [{"text": SYSTEM_PROMPT + "\n\nTexto a clasificar:\n" + descripcion}]}
+            ],
+            "generationConfig": {
+                "temperature": 0,
+                "maxOutputTokens": 150,
+                "responseMimeType": "application/json",
+            },
+        }
         async with httpx.AsyncClient(timeout=15.0) as client:
-            response = await client.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {OPENAI_API_KEY}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": OPENAI_MODEL,
-                    "max_tokens": 150,
-                    "temperature": 0,
-                    "response_format": {"type": "json_object"},
-                    "messages": [
-                        {"role": "system", "content": SYSTEM_PROMPT},
-                        {"role": "user",   "content": descripcion},
-                    ],
-                },
-            )
+            response = await client.post(url, json=payload, headers={"Content-Type": "application/json"})
             response.raise_for_status()
             data = response.json()
-            content = data["choices"][0]["message"]["content"].strip()
+            content = data["candidates"][0]["content"]["parts"][0]["text"].strip()
 
             result = json.loads(content)
-
-            print("reult: ", result);
-
             tipo = result.get("tipo", "otras").strip().lower()
-            print("tipo: ", tipo);
             if tipo not in CATEGORIAS:
                 tipo = "otras"
 
@@ -354,6 +345,6 @@ def root():
     return {
         "status": "ok",
         "docs":   "/docs",
-        "modelo": OPENAI_MODEL,
+        "modelo": GEMINI_MODEL,
         "endpoints": ["/usuarios", "/notas", "/estadisticas", "/clasificar", "/categorias"]
     }
