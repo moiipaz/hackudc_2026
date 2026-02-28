@@ -1,24 +1,121 @@
-<div class="card" style="margin-bottom:16px;">
-  <h2>Usuario</h2>
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Notas</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
 
-  <div class="row">
-    <label>
-      Nombre
-      <input id="uNombre" type="text" placeholder="Ana García" />
-    </label>
-    <label>
-      Email
-      <input id="uEmail" type="email" placeholder="ana@email.com" />
-    </label>
-  </div>
+<body>
+  <header class="container">
+    <h1>Notas</h1>
+    <p class="muted">Crear, ver y borrar notas usando tu API FastAPI.</p>
+  </header>
 
-  <div class="row actions">
-    <button type="button" id="btnCrearUsuario">Crear usuario</button>
-    <button type="button" id="btnCargarUsuarios" class="secondary">Cargar usuarios</button>
-  </div>
+  <main class="container">
 
-  <label>
-    Usuario activo
-    <select id="usuarioSelect"></select>
-  </label>
-</div>
+    <!-- Usuario -->
+    <section class="card" style="margin-bottom:16px;">
+      <div class="cardTitle">
+        <h2>Usuario</h2>
+        <div class="badge" id="usuarioActivoBadge">Sin usuario</div>
+      </div>
+
+      <div class="row">
+        <label>
+          Nombre
+          <input id="uNombre" type="text" placeholder="Ana García" />
+        </label>
+
+        <label>
+          Email
+          <input id="uEmail" type="email" placeholder="ana@email.com" />
+        </label>
+      </div>
+
+      <div class="row actions" style="margin-top:10px;">
+        <button type="button" id="btnCrearUsuario">Crear usuario</button>
+        <button type="button" id="btnCargarUsuarios" class="secondary">Cargar usuarios</button>
+      </div>
+
+      <label style="margin-top:10px;">
+        Usuario activo
+        <select id="usuarioSelect"></select>
+      </label>
+
+      <p class="muted" style="margin-top:10px;">
+        Para crear una nota necesitas seleccionar un usuario.
+      </p>
+    </section>
+
+    <div class="grid">
+      <!-- Crear nota -->
+      <section class="card">
+        <h2>Nueva nota</h2>
+
+        <form id="formNota" class="form">
+          <label>
+            Descripción
+            <textarea id="descripcion" placeholder="Escribe la nota..." required></textarea>
+          </label>
+
+          <div class="row">
+            <label>
+              Tipo
+              <select id="tipo" required>
+                <option value="personal">personal</option>
+                <option value="trabajo">trabajo</option>
+                <option value="estudio">estudio</option>
+              </select>
+            </label>
+
+            <label>
+              Prioridad (opcional)
+              <input id="prioridad" type="number" min="1" max="5" step="1" placeholder="1..5" />
+            </label>
+          </div>
+
+          <label>
+            Autor (opcional)
+            <input id="autor" type="text" placeholder="Tu nombre" />
+          </label>
+
+          <div class="row actions">
+            <button type="submit">Crear</button>
+            <button type="button" id="btnRecargar" class="secondary">Recargar</button>
+          </div>
+
+          <p id="msg" class="msg" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <!-- Lista -->
+      <section class="card">
+        <div class="cardTitle">
+          <h2>Listado</h2>
+          <div class="badge" id="contador">0</div>
+        </div>
+
+        <div class="toolbar">
+          <input id="buscador" type="search" placeholder="Buscar por texto / autor / tipo..." />
+          <select id="filtroTipo">
+            <option value="">Todos</option>
+            <option value="personal">personal</option>
+            <option value="trabajo">trabajo</option>
+            <option value="estudio">estudio</option>
+          </select>
+        </div>
+
+        <div id="lista" class="lista"></div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="container footer">
+    <span class="muted">Frontend estático. Backend: FastAPI.</span>
+  </footer>
+
+  <script src="./app.js"></script>
+</body>
+</html>
