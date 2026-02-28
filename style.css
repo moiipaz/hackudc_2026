@@ -1,6 +1,3 @@
-/* RESET FORZADO - sobreescribe cualquier CSS del servidor/navegador */
-html, body { background: #0e1117 !important; color: rgba(255,255,255,.90) !important; font-family: 'Sora', system-ui, sans-serif !important; }
-a { color: inherit; text-decoration: none; }
 /* ============================================================
    VARIABLES & RESET
    ============================================================ */
@@ -46,7 +43,95 @@ body {
 }
 
 /* ============================================================
-   LAYOUT
+   PAGES (auth / app)
+   ============================================================ */
+.page {
+  position: relative;
+  z-index: 1;
+  animation: fadeIn .25s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================================
+   AUTH PAGE
+   ============================================================ */
+.page-auth {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px 16px;
+}
+
+.auth-wrap {
+  width: 100%;
+  max-width: 420px;
+}
+
+.auth-brand {
+  text-align: center;
+  margin-bottom: 32px;
+}
+.auth-brand h1 {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -.5px;
+  color: #fff;
+}
+.auth-brand .muted {
+  margin-top: 6px;
+  font-size: 13.5px;
+}
+
+/* Tabs */
+.auth-tabs {
+  display: flex;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px;
+  gap: 4px;
+  margin-bottom: 20px;
+}
+
+.auth-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  color: var(--muted);
+  font-family: 'Sora', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 9px 16px;
+  cursor: pointer;
+  transition: background .18s, color .18s;
+}
+.auth-tab.active {
+  background: var(--card2);
+  color: var(--text);
+}
+.auth-tab:hover:not(.active) {
+  color: rgba(255,255,255,.7);
+}
+
+/* Panel */
+.auth-panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ============================================================
+   APP PAGE LAYOUT
    ============================================================ */
 .container {
   position: relative;
@@ -65,6 +150,12 @@ main.container   { padding-bottom: 20px; }
   gap: 12px;
   padding-bottom: 20px;
   border-bottom: 1px solid var(--border);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 h1 {
@@ -100,9 +191,6 @@ h1 .dot { color: var(--accent); }
   position: relative;
 }
 
-.card + .card { margin-top: 0; }
-.user-card    { margin-bottom: 16px; }
-
 .card-label {
   font-family: 'JetBrains Mono', monospace;
   font-size: 10px;
@@ -120,19 +208,6 @@ h1 .dot { color: var(--accent); }
   margin-bottom: 14px;
 }
 
-.section-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text);
-  margin-bottom: 14px;
-}
-
-.divider {
-  height: 1px;
-  background: var(--border);
-  margin: 18px 0;
-}
-
 /* ============================================================
    GRID
    ============================================================ */
@@ -140,6 +215,7 @@ h1 .dot { color: var(--accent); }
   display: grid;
   grid-template-columns: 1fr 1.25fr;
   gap: 14px;
+  margin-top: 16px;
 }
 
 @media (max-width: 840px) {
@@ -226,7 +302,7 @@ select {
   flex-wrap: wrap;
 }
 
-button, .btn-primary, .btn-ghost {
+button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -242,9 +318,9 @@ button, .btn-primary, .btn-ghost {
 }
 
 .btn-primary {
-  background: var(--accent) !important;
-  color: #fff !important;
-  border-color: transparent !important;
+  background: var(--accent);
+  color: #fff;
+  border-color: transparent;
   box-shadow: 0 2px 12px rgba(91,141,238,.25);
 }
 .btn-primary:hover {
@@ -253,6 +329,14 @@ button, .btn-primary, .btn-ghost {
   transform: translateY(-1px);
 }
 .btn-primary:active { transform: translateY(0); }
+
+.btn-full {
+  width: 100%;
+  justify-content: center;
+  padding: 11px 16px;
+  font-size: 13.5px;
+  margin-top: 4px;
+}
 
 .btn-ghost {
   background: rgba(255,255,255,.05);
@@ -265,7 +349,11 @@ button, .btn-primary, .btn-ghost {
   border-color: rgba(255,255,255,.18);
 }
 
-/* danger borrar */
+.btn-sm {
+  font-size: 12px;
+  padding: 6px 12px;
+}
+
 button.danger {
   display: inline-flex;
   align-items: center;
@@ -354,9 +442,7 @@ button.danger:hover {
   color: var(--muted);
   pointer-events: none;
 }
-.search-wrap input {
-  padding-left: 32px;
-}
+.search-wrap input { padding-left: 32px; }
 
 .filter-select {
   width: auto;
@@ -448,65 +534,36 @@ button.danger:hover {
   font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
 }
-/* ============================================================
-   PAGES (auth / app)
-   ============================================================ */
-.page { position: relative; z-index: 1; animation: fadeIn .25s ease; }
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
 
 /* ============================================================
-   AUTH PAGE
+   CATEGORY BADGES (IA classification)
    ============================================================ */
-.page-auth {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  padding: 24px 16px;
-}
-.auth-wrap { width: 100%; max-width: 420px; }
-.auth-brand { text-align: center; margin-bottom: 32px; }
-.auth-brand h1 { font-size: 32px; font-weight: 700; letter-spacing: -.5px; color: #fff; }
-.auth-brand .muted { margin-top: 6px; font-size: 13.5px; }
-
-.auth-tabs {
-  display: flex;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 4px;
-  gap: 4px;
-  margin-bottom: 20px;
-}
-.auth-tab {
-  flex: 1;
-  background: transparent;
-  border: none;
-  border-radius: 10px;
-  color: var(--muted);
-  font-family: 'Sora', system-ui, sans-serif;
-  font-size: 13px;
+.pill-tipo {
+  font-size: 11px;
   font-weight: 600;
-  padding: 9px 16px;
-  cursor: pointer;
-  transition: background .18s, color .18s;
-}
-.auth-tab.active { background: var(--card2); color: var(--text); }
-.auth-tab:hover:not(.active) { color: rgba(255,255,255,.7); }
-
-.auth-panel {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 22px;
-  display: flex;
-  flex-direction: column;
+  padding: 3px 10px;
+  letter-spacing: .2px;
 }
 
-.header-right { display: flex; align-items: center; gap: 10px; }
-.btn-full { width: 100% !important; justify-content: center; padding: 11px 16px; font-size: 13.5px; margin-top: 4px; }
-.btn-sm { font-size: 12px; padding: 6px 12px; }
+.pill-ia {
+  font-size: 10px;
+  color: rgba(255,255,255,.28);
+  background: transparent;
+  border-color: rgba(255,255,255,.06);
+  font-style: italic;
+}
+
+/* IA badge en el formulario */
+.ia-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  color: var(--accent);
+  background: rgba(91,141,238,.08);
+  border: 1px solid rgba(91,141,238,.20);
+  border-radius: 999px;
+  padding: 4px 10px;
+  margin-bottom: 12px;
+}
