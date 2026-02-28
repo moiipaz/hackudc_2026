@@ -1,3 +1,6 @@
+/* RESET FORZADO - sobreescribe cualquier CSS del servidor/navegador */
+html, body { background: #0e1117 !important; color: rgba(255,255,255,.90) !important; font-family: 'Sora', system-ui, sans-serif !important; }
+a { color: inherit; text-decoration: none; }
 /* ============================================================
    VARIABLES & RESET
    ============================================================ */
@@ -31,10 +34,7 @@ body {
   min-height: 100vh;
 }
 
-<<<<<<< HEAD
 /* Subtle noise overlay */
-=======
->>>>>>> c3c576badfd93ec830bfd2e07579756508b3af08
 .noise {
   pointer-events: none;
   position: fixed;
@@ -43,7 +43,6 @@ body {
   opacity: .025;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
   background-size: 200px 200px;
-<<<<<<< HEAD
 }
 
 /* ============================================================
@@ -70,51 +69,10 @@ main.container   { padding-bottom: 20px; }
 
 h1 {
   font-size: 26px;
-=======
-}
-
-/* ============================================================
-   PAGES (auth / app)
-   ============================================================ */
-.page {
-  position: relative;
-  z-index: 1;
-  animation: fadeIn .25s ease;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* ============================================================
-   AUTH PAGE
-   ============================================================ */
-.page-auth {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  padding: 24px 16px;
-}
-
-.auth-wrap {
-  width: 100%;
-  max-width: 420px;
-}
-
-.auth-brand {
-  text-align: center;
-  margin-bottom: 32px;
-}
-.auth-brand h1 {
-  font-size: 32px;
->>>>>>> c3c576badfd93ec830bfd2e07579756508b3af08
   font-weight: 700;
   letter-spacing: -.5px;
   color: #fff;
 }
-<<<<<<< HEAD
 h1 .dot { color: var(--accent); }
 
 .muted { color: var(--muted); font-size: 13px; margin-top: 2px; }
@@ -184,144 +142,6 @@ h1 .dot { color: var(--accent); }
   gap: 14px;
 }
 
-=======
-.auth-brand .muted {
-  margin-top: 6px;
-  font-size: 13.5px;
-}
-
-/* Tabs */
-.auth-tabs {
-  display: flex;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 4px;
-  gap: 4px;
-  margin-bottom: 20px;
-}
-
-.auth-tab {
-  flex: 1;
-  background: transparent;
-  border: none;
-  border-radius: 10px;
-  color: var(--muted);
-  font-family: 'Sora', system-ui, sans-serif;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 9px 16px;
-  cursor: pointer;
-  transition: background .18s, color .18s;
-}
-.auth-tab.active {
-  background: var(--card2);
-  color: var(--text);
-}
-.auth-tab:hover:not(.active) {
-  color: rgba(255,255,255,.7);
-}
-
-/* Panel */
-.auth-panel {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 22px;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-/* ============================================================
-   APP PAGE LAYOUT
-   ============================================================ */
-.container {
-  position: relative;
-  z-index: 1;
-  width: min(1100px, calc(100% - 32px));
-  margin: 0 auto;
-}
-
-header.container { padding: 28px 0 6px; }
-main.container   { padding-bottom: 20px; }
-
-.header-inner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid var(--border);
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-h1 {
-  font-size: 26px;
-  font-weight: 700;
-  letter-spacing: -.5px;
-  color: #fff;
-}
-h1 .dot { color: var(--accent); }
-
-.muted { color: var(--muted); font-size: 13px; margin-top: 2px; }
-
-.header-badge {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  color: var(--accent);
-  background: rgba(91,141,238,.10);
-  border: 1px solid rgba(91,141,238,.25);
-  border-radius: 999px;
-  padding: 5px 14px;
-  white-space: nowrap;
-  letter-spacing: .3px;
-}
-
-/* ============================================================
-   CARDS
-   ============================================================ */
-.card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 20px 22px;
-  position: relative;
-}
-
-.card-label {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 1.5px;
-  color: var(--label);
-  text-transform: uppercase;
-  margin-bottom: 16px;
-}
-
-.card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
-}
-
-/* ============================================================
-   GRID
-   ============================================================ */
-.grid {
-  display: grid;
-  grid-template-columns: 1fr 1.25fr;
-  gap: 14px;
-  margin-top: 16px;
-}
-
->>>>>>> c3c576badfd93ec830bfd2e07579756508b3af08
 @media (max-width: 840px) {
   .grid { grid-template-columns: 1fr; }
 }
@@ -390,15 +210,12 @@ select {
   font-weight: 400;
 }
 
-<<<<<<< HEAD
 .hint-text {
   font-size: 11.5px;
   color: var(--muted);
   margin-top: 10px;
 }
 
-=======
->>>>>>> c3c576badfd93ec830bfd2e07579756508b3af08
 /* ============================================================
    BUTTONS
    ============================================================ */
@@ -409,11 +226,7 @@ select {
   flex-wrap: wrap;
 }
 
-<<<<<<< HEAD
 button, .btn-primary, .btn-ghost {
-=======
-button {
->>>>>>> c3c576badfd93ec830bfd2e07579756508b3af08
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -441,17 +254,6 @@ button {
 }
 .btn-primary:active { transform: translateY(0); }
 
-<<<<<<< HEAD
-=======
-.btn-full {
-  width: 100%;
-  justify-content: center;
-  padding: 11px 16px;
-  font-size: 13.5px;
-  margin-top: 4px;
-}
-
->>>>>>> c3c576badfd93ec830bfd2e07579756508b3af08
 .btn-ghost {
   background: rgba(255,255,255,.05);
   color: var(--muted);
@@ -463,15 +265,7 @@ button {
   border-color: rgba(255,255,255,.18);
 }
 
-<<<<<<< HEAD
 /* danger borrar */
-=======
-.btn-sm {
-  font-size: 12px;
-  padding: 6px 12px;
-}
-
->>>>>>> c3c576badfd93ec830bfd2e07579756508b3af08
 button.danger {
   display: inline-flex;
   align-items: center;
@@ -493,7 +287,6 @@ button.danger:hover {
   transform: translateY(-1px);
 }
 
-<<<<<<< HEAD
 .btn-icon {
   display: inline-flex;
   align-items: center;
@@ -513,8 +306,6 @@ button.danger:hover {
 }
 .btn-icon:hover { background: rgba(255,255,255,.09); color: var(--text); }
 
-=======
->>>>>>> c3c576badfd93ec830bfd2e07579756508b3af08
 /* ============================================================
    COUNTER BADGE
    ============================================================ */
@@ -534,7 +325,6 @@ button.danger:hover {
 }
 
 /* ============================================================
-<<<<<<< HEAD
    USER SELECT ROW
    ============================================================ */
 .user-select-row {
@@ -544,8 +334,6 @@ button.danger:hover {
 }
 
 /* ============================================================
-=======
->>>>>>> c3c576badfd93ec830bfd2e07579756508b3af08
    TOOLBAR / SEARCH
    ============================================================ */
 .toolbar {
@@ -566,13 +354,9 @@ button.danger:hover {
   color: var(--muted);
   pointer-events: none;
 }
-<<<<<<< HEAD
 .search-wrap input {
   padding-left: 32px;
 }
-=======
-.search-wrap input { padding-left: 32px; }
->>>>>>> c3c576badfd93ec830bfd2e07579756508b3af08
 
 .filter-select {
   width: auto;
@@ -663,8 +447,66 @@ button.danger:hover {
 .mono {
   font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
-<<<<<<< HEAD
 }
-=======
+/* ============================================================
+   PAGES (auth / app)
+   ============================================================ */
+.page { position: relative; z-index: 1; animation: fadeIn .25s ease; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
->>>>>>> c3c576badfd93ec830bfd2e07579756508b3af08
+
+/* ============================================================
+   AUTH PAGE
+   ============================================================ */
+.page-auth {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px 16px;
+}
+.auth-wrap { width: 100%; max-width: 420px; }
+.auth-brand { text-align: center; margin-bottom: 32px; }
+.auth-brand h1 { font-size: 32px; font-weight: 700; letter-spacing: -.5px; color: #fff; }
+.auth-brand .muted { margin-top: 6px; font-size: 13.5px; }
+
+.auth-tabs {
+  display: flex;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px;
+  gap: 4px;
+  margin-bottom: 20px;
+}
+.auth-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  color: var(--muted);
+  font-family: 'Sora', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 9px 16px;
+  cursor: pointer;
+  transition: background .18s, color .18s;
+}
+.auth-tab.active { background: var(--card2); color: var(--text); }
+.auth-tab:hover:not(.active) { color: rgba(255,255,255,.7); }
+
+.auth-panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+}
+
+.header-right { display: flex; align-items: center; gap: 10px; }
+.btn-full { width: 100%; justify-content: center; padding: 11px 16px; font-size: 13.5px; margin-top: 4px; }
+.btn-sm { font-size: 12px; padding: 6px 12px; }
