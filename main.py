@@ -6,12 +6,13 @@ from datetime import datetime
 import json
 import os
 import bcrypt
+import httpx
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
     title="API de Notas Personales",
     description="Sistema para gestionar usuarios y sus notas privadas",
-    version="3.0.0"
+    version="4.0.0"
 )
 
 app.add_middleware(
@@ -22,15 +23,26 @@ app.add_middleware(
     allow_credentials=False,
 )
 
-NOTAS_FILE = "notas.json"
+NOTAS_FILE    = "notas.json"
 USUARIOS_FILE = "usuarios.json"
+
+# =========================
+# 📌 CATEGORÍAS IA
+# =========================
+
+CATEGORIAS = [
+    "youtube", "audios", "recordatorios", "codigo", "personal",
+    "trabajo", "estudios", "salud", "compra", "tareas", "ideas",
+    "lectura", "peliculas_series", "eventos", "contactos", "recetas",
+    "musica", "metas", "tecnologia", "inspiraciones", "otras"
+]
 
 # =========================
 # 📌 MODELOS
 # =========================
 
 class Metadato(BaseModel):
-    tipo: str = Field(..., example="personal", description="Tipo: personal, trabajo, estudio")
+    tipo: str = Field(default="otras", description="Categoría de la nota")
     autor: Optional[str] = Field(None, example="Juan")
     prioridad: Optional[int] = Field(None, ge=1, le=5, example=3)
 
@@ -43,8 +55,10 @@ class Nota(NotaBase):
     identificador: str
     fecha: datetime
 
-class NotaCreate(NotaBase):
-    pass
+class NotaCreate(BaseModel):
+    usuario_id: str
+    descripcion: str
+    metadato: Optional[Metadato] = None
 
 class UsuarioBase(BaseModel):
     nombre: str = Field(..., example="Ana García")
@@ -60,6 +74,91 @@ class Usuario(UsuarioBase):
 class UsuarioLogin(BaseModel):
     email: EmailStr
     password: str
+
+class ClasificarRequest(BaseModel):
+    texto: str
+
+
+# =========================
+# 📌 CLASIFICADOR IA
+# =========================
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_MODEL   = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
+
+SYSTEM_PROMPT = """Eres un clasificador de notas personales.
+Dada una descripción, devuelve SOLO un JSON con este formato exacto:
+{"tipo": "<categoria>", "confianza": <0.0-1.0>, "motivo": "<texto corto>"}
+
+Categorías disponibles (elige SOLO una):
+youtube, audios, recordatorios, codigo, personal, trabajo, estudios, salud,
+compra, tareas, ideas, lectura, peliculas_series, eventos, contactos,
+recetas, musica, metas, tecnologia, inspiraciones, otras
+
+Reglas:
+- Link youtube.com o youtu.be -> youtube
+- Menciona audio, nota de voz, mp3, grabación -> audios
+- Lista de compras, supermercado, items a comprar -> compra
+- Tareas TO-DO sin fecha concreta -> tareas
+- Fecha/cita/evento/plan concreto -> eventos
+- Código, stacktrace, comandos, programación -> codigo
+- Salud, médico, medicamento, ejercicio -> salud
+- Película, serie, show, episodio -> peliculas_series
+- Canción, álbum, artista, playlist -> musica
+- Contacto, teléfono, email de alguien -> contactos
+- Receta de cocina, ingredientes, pasos -> recetas
+- Meta, objetivo, propósito a largo plazo -> metas
+- Idea creativa, concepto, brainstorm -> ideas
+- Inspiración, cita, frase motivacional -> inspiraciones
+- Gadgets, software, tech en general -> tecnologia
+- Libros, artículos, leer -> lectura
+- Nada encaja bien -> otras
+
+Devuelve SOLO el JSON, sin texto adicional."""
+
+
+async def classify_note(descripcion: str) -> dict:
+    """Clasifica una nota usando OpenAI. Fallback a 'otras' si falla."""
+    if not OPENAI_API_KEY:
+        return {"tipo": "otras", "confianza": 0.0, "motivo": "Sin API key configurada"}
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {OPENAI_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": OPENAI_MODEL,
+                    "messages": [
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": descripcion},
+                    ],
+                    "temperature": 0,
+                    "max_tokens": 100,
+                    "response_format": {"type": "json_object"},
+                },
+            )
+            response.raise_for_status()
+            data = response.json()
+            content = data["choices"][0]["message"]["content"]
+            result = json.loads(content)
+
+            tipo = result.get("tipo", "otras")
+            if tipo not in CATEGORIAS:
+                tipo = "otras"
+
+            return {
+                "tipo": tipo,
+                "confianza": float(result.get("confianza", 0.5)),
+                "motivo": result.get("motivo", ""),
+            }
+
+    except Exception as e:
+        return {"tipo": "otras", "confianza": 0.0, "motivo": f"Error: {str(e)[:80]}"}
+
 
 # =========================
 # 📌 FUNCIONES AUXILIARES
@@ -82,6 +181,7 @@ def hash_password(password: str) -> str:
 def verify_password(password: str, hashed: str) -> bool:
     return bcrypt.checkpw(password.encode("utf-8"), hashed.encode("utf-8"))
 
+
 # =========================
 # 📌 ENDPOINTS - USUARIOS
 # =========================
@@ -92,31 +192,6 @@ def obtener_usuarios():
         {k: v for k, v in u.items() if k != "password_hash"}
         for u in leer_json(USUARIOS_FILE)
     ]
-
-@app.get("/usuarios/{identificador}", response_model=Usuario, tags=["Usuarios"])
-def obtener_usuario(identificador: str):
-    for u in leer_json(USUARIOS_FILE):
-        if u["identificador"] == identificador:
-            return {k: v for k, v in u.items() if k != "password_hash"}
-    raise HTTPException(status_code=404, detail="Usuario no encontrado")
-
-@app.post("/usuarios", response_model=Usuario, tags=["Usuarios"], status_code=201)
-def crear_usuario(usuario: UsuarioCreate):
-    usuarios = leer_json(USUARIOS_FILE)
-    for u in usuarios:
-        if u["email"] == usuario.email:
-            raise HTTPException(status_code=400, detail="Ya existe un usuario con ese email")
-
-    nuevo = {
-        "identificador": str(uuid4()),
-        "nombre": usuario.nombre,
-        "email": usuario.email,
-        "password_hash": hash_password(usuario.password),
-        "fecha_registro": datetime.now().isoformat()
-    }
-    usuarios.append(nuevo)
-    guardar_json(USUARIOS_FILE, usuarios)
-    return {k: v for k, v in nuevo.items() if k != "password_hash"}
 
 @app.post("/usuarios/login", tags=["Usuarios"])
 def login_usuario(datos: UsuarioLogin):
@@ -133,6 +208,30 @@ def login_usuario(datos: UsuarioLogin):
                 raise HTTPException(status_code=401, detail="Contraseña incorrecta")
     raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
+@app.post("/usuarios", response_model=Usuario, tags=["Usuarios"], status_code=201)
+def crear_usuario(usuario: UsuarioCreate):
+    usuarios = leer_json(USUARIOS_FILE)
+    for u in usuarios:
+        if u["email"] == usuario.email:
+            raise HTTPException(status_code=400, detail="Ya existe un usuario con ese email")
+    nuevo = {
+        "identificador": str(uuid4()),
+        "nombre": usuario.nombre,
+        "email": usuario.email,
+        "password_hash": hash_password(usuario.password),
+        "fecha_registro": datetime.now().isoformat()
+    }
+    usuarios.append(nuevo)
+    guardar_json(USUARIOS_FILE, usuarios)
+    return {k: v for k, v in nuevo.items() if k != "password_hash"}
+
+@app.get("/usuarios/{identificador}", response_model=Usuario, tags=["Usuarios"])
+def obtener_usuario(identificador: str):
+    for u in leer_json(USUARIOS_FILE):
+        if u["identificador"] == identificador:
+            return {k: v for k, v in u.items() if k != "password_hash"}
+    raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
 @app.delete("/usuarios/{identificador}", tags=["Usuarios"])
 def eliminar_usuario(identificador: str):
     usuarios = leer_json(USUARIOS_FILE)
@@ -144,6 +243,13 @@ def eliminar_usuario(identificador: str):
             guardar_json(NOTAS_FILE, notas)
             return {"mensaje": "Usuario y sus notas eliminados correctamente"}
     raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+@app.get("/usuarios/{usuario_id}/notas", response_model=List[Nota], tags=["Notas"])
+def obtener_notas_de_usuario(usuario_id: str):
+    if not any(u["identificador"] == usuario_id for u in leer_json(USUARIOS_FILE)):
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    return [n for n in leer_json(NOTAS_FILE) if n["usuario_id"] == usuario_id]
+
 
 # =========================
 # 📌 ENDPOINTS - NOTAS
@@ -160,24 +266,30 @@ def obtener_nota(identificador: str):
             return nota
     raise HTTPException(status_code=404, detail="Nota no encontrada")
 
-@app.get("/usuarios/{usuario_id}/notas", response_model=List[Nota], tags=["Notas"])
-def obtener_notas_de_usuario(usuario_id: str):
-    if not any(u["identificador"] == usuario_id for u in leer_json(USUARIOS_FILE)):
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    return [n for n in leer_json(NOTAS_FILE) if n["usuario_id"] == usuario_id]
-
 @app.post("/notas", response_model=Nota, tags=["Notas"], status_code=201)
-def crear_nota(nota: NotaCreate):
+async def crear_nota(nota: NotaCreate):
     if not any(u["identificador"] == nota.usuario_id for u in leer_json(USUARIOS_FILE)):
         raise HTTPException(status_code=404, detail="No se puede crear la nota: el usuario no existe")
+
+    # Clasificación IA (fallback automático a "otras")
+    clasificacion = await classify_note(nota.descripcion)
+
+    meta_base = nota.metadato.model_dump() if nota.metadato else {}
+    metadato = {
+        "tipo":         clasificacion["tipo"],
+        "autor":        meta_base.get("autor"),
+        "prioridad":    meta_base.get("prioridad"),
+        "ia_confianza": clasificacion["confianza"],
+        "ia_motivo":    clasificacion["motivo"],
+    }
 
     notas = leer_json(NOTAS_FILE)
     nueva = {
         "identificador": str(uuid4()),
-        "usuario_id": nota.usuario_id,
-        "descripcion": nota.descripcion,
-        "fecha": datetime.now().isoformat(),
-        "metadato": nota.metadato.model_dump()
+        "usuario_id":    nota.usuario_id,
+        "descripcion":   nota.descripcion,
+        "fecha":         datetime.now().isoformat(),
+        "metadato":      metadato,
     }
     notas.append(nueva)
     guardar_json(NOTAS_FILE, notas)
@@ -193,20 +305,30 @@ def eliminar_nota(identificador: str):
             return {"mensaje": "Nota eliminada correctamente"}
     raise HTTPException(status_code=404, detail="Nota no encontrada")
 
+
 # =========================
 # 📌 ENDPOINTS - EXTRA
 # =========================
 
+@app.post("/clasificar", tags=["Utilidades"])
+async def clasificar_texto(req: ClasificarRequest):
+    """Debug: clasifica un texto sin guardarlo."""
+    return await classify_note(req.texto)
+
+@app.get("/categorias", tags=["Utilidades"])
+def obtener_categorias():
+    return {"categorias": CATEGORIAS}
+
 @app.get("/estadisticas", tags=["Utilidades"])
 def obtener_estadisticas():
     usuarios = leer_json(USUARIOS_FILE)
-    notas = leer_json(NOTAS_FILE)
+    notas    = leer_json(NOTAS_FILE)
     return {
         "total_usuarios": len(usuarios),
-        "total_notas": len(notas),
+        "total_notas":    len(notas),
         "notas_por_usuario": {
-            "con_notas": len(set(n["usuario_id"] for n in notas)),
-            "sin_notas": len(usuarios) - len(set(n["usuario_id"] for n in notas))
+            "con_notas":  len(set(n["usuario_id"] for n in notas)),
+            "sin_notas":  len(usuarios) - len(set(n["usuario_id"] for n in notas)),
         }
     }
 
@@ -215,5 +337,5 @@ def root():
     return {
         "status": "ok",
         "docs": "/docs",
-        "endpoints": ["/usuarios", "/notas", "/estadisticas"]
+        "endpoints": ["/usuarios", "/notas", "/estadisticas", "/clasificar", "/categorias"]
     }
