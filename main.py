@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 app = FastAPI(
     title="API de Notas Personales",
     description="Sistema para gestionar usuarios y sus notas privadas",
-    version="4.0.0"
+    version="4.1.0"
 )
 
 app.add_middleware(
@@ -80,82 +80,95 @@ class ClasificarRequest(BaseModel):
 
 
 # =========================
-# 📌 CLASIFICADOR IA
+# 📌 CLASIFICADOR IA (Claude)
 # =========================
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-OPENAI_MODEL   = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+ANTHROPIC_MODEL   = os.getenv("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001")  # rápido y barato
 
-SYSTEM_PROMPT = """Eres un clasificador de notas personales.
-Dada una descripción, devuelve SOLO un JSON con este formato exacto:
-{"tipo": "<categoria>", "confianza": <0.0-1.0>, "motivo": "<texto corto>"}
+SYSTEM_PROMPT = f"""Eres un clasificador de notas personales.
+Dada una descripción, devuelve SOLO un JSON con este formato exacto (sin texto adicional, sin markdown):
+{{"tipo": "<categoria>", "confianza": <0.0-1.0>, "motivo": "<texto corto>"}}
 
 Categorías disponibles (elige SOLO una):
 youtube, audios, recordatorios, codigo, personal, trabajo, estudios, salud,
 compra, tareas, ideas, lectura, peliculas_series, eventos, contactos,
 recetas, musica, metas, tecnologia, inspiraciones, otras
 
-Reglas:
-- Link youtube.com o youtu.be -> youtube
-- Menciona audio, nota de voz, mp3, grabación -> audios
-- Lista de compras, supermercado, items a comprar -> compra
-- Tareas TO-DO sin fecha concreta -> tareas
-- Fecha/cita/evento/plan concreto -> eventos
-- Código, stacktrace, comandos, programación -> codigo
-- Salud, médico, medicamento, ejercicio -> salud
-- Película, serie, show, episodio -> peliculas_series
-- Canción, álbum, artista, playlist -> musica
-- Contacto, teléfono, email de alguien -> contactos
-- Receta de cocina, ingredientes, pasos -> recetas
-- Meta, objetivo, propósito a largo plazo -> metas
-- Idea creativa, concepto, brainstorm -> ideas
-- Inspiración, cita, frase motivacional -> inspiraciones
-- Gadgets, software, tech en general -> tecnologia
-- Libros, artículos, leer -> lectura
-- Nada encaja bien -> otras
+Reglas de clasificación:
+- Link youtube.com o youtu.be → youtube
+- Menciona audio, nota de voz, mp3, grabación, podcast → audios
+- Lista de compras, supermercado, ingredientes a comprar → compra
+- Tarea TO-DO pendiente sin fecha concreta → tareas
+- Fecha, cita, evento, reunión, plan concreto con hora/día → eventos
+- Código, stacktrace, bug, comando, programación, script → codigo
+- Salud, médico, medicamento, síntoma, ejercicio, dieta → salud
+- Película, serie, show, episodio, temporada → peliculas_series
+- Canción, álbum, artista, playlist, letra → musica
+- Contacto, teléfono, email de alguien, dirección → contactos
+- Receta de cocina, ingredientes con cantidades, pasos de preparación → recetas
+- Meta, objetivo, propósito, plan a largo plazo → metas
+- Idea creativa, concepto, brainstorm, ocurrencia → ideas
+- Inspiración, cita, frase motivacional, reflexión → inspiraciones
+- Gadgets, software, hardware, tech en general → tecnologia
+- Libro, artículo, blog, leer, lectura → lectura
+- Recordatorio con urgencia, alarma, no olvidar → recordatorios
+- Ámbito profesional, trabajo, empresa, cliente, proyecto laboral → trabajo
+- Universidad, clase, apuntes, examen, estudiar → estudios
+- Algo personal/íntimo que no encaja en otras → personal
+- Nada encaja bien → otras
 
-Devuelve SOLO el JSON, sin texto adicional."""
+Devuelve SOLO el JSON válido."""
 
 
 async def classify_note(descripcion: str) -> dict:
-    """Clasifica una nota usando OpenAI. Fallback a 'otras' si falla."""
-    if not OPENAI_API_KEY:
-        return {"tipo": "otras", "confianza": 0.0, "motivo": "Sin API key configurada"}
+    """Clasifica una nota usando la API de Anthropic (Claude). Fallback a 'otras' si falla."""
+    if not ANTHROPIC_API_KEY:
+        return {"tipo": "otras", "confianza": 0.0, "motivo": "Sin ANTHROPIC_API_KEY configurada"}
 
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=15.0) as client:
             response = await client.post(
-                "https://api.openai.com/v1/chat/completions",
+                "https://api.anthropic.com/v1/messages",
                 headers={
-                    "Authorization": f"Bearer {OPENAI_API_KEY}",
-                    "Content-Type": "application/json",
+                    "x-api-key": ANTHROPIC_API_KEY,
+                    "anthropic-version": "2023-06-01",
+                    "content-type": "application/json",
                 },
                 json={
-                    "model": OPENAI_MODEL,
+                    "model": ANTHROPIC_MODEL,
+                    "max_tokens": 150,
+                    "system": SYSTEM_PROMPT,
                     "messages": [
-                        {"role": "system", "content": SYSTEM_PROMPT},
-                        {"role": "user", "content": descripcion},
+                        {"role": "user", "content": descripcion}
                     ],
-                    "temperature": 0,
-                    "max_tokens": 100,
-                    "response_format": {"type": "json_object"},
                 },
             )
             response.raise_for_status()
             data = response.json()
-            content = data["choices"][0]["message"]["content"]
+            content = data["content"][0]["text"].strip()
+
+            # Limpiar posibles backticks que el modelo añada
+            if content.startswith("```"):
+                content = content.split("```")[1]
+                if content.startswith("json"):
+                    content = content[4:]
+            content = content.strip()
+
             result = json.loads(content)
 
-            tipo = result.get("tipo", "otras")
+            tipo = result.get("tipo", "otras").strip().lower()
             if tipo not in CATEGORIAS:
                 tipo = "otras"
 
             return {
-                "tipo": tipo,
-                "confianza": float(result.get("confianza", 0.5)),
-                "motivo": result.get("motivo", ""),
+                "tipo":      tipo,
+                "confianza": float(result.get("confianza", 0.8)),
+                "motivo":    result.get("motivo", ""),
             }
 
+    except json.JSONDecodeError as e:
+        return {"tipo": "otras", "confianza": 0.0, "motivo": f"JSON inválido: {str(e)[:60]}"}
     except Exception as e:
         return {"tipo": "otras", "confianza": 0.0, "motivo": f"Error: {str(e)[:80]}"}
 
@@ -168,8 +181,15 @@ def leer_json(filepath: str) -> list:
     if not os.path.exists(filepath):
         with open(filepath, "w") as f:
             json.dump([], f)
+        return []
     with open(filepath, "r") as f:
-        return json.load(f)
+        content = f.read().strip()
+        if not content:
+            return []
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError:
+            return []
 
 def guardar_json(filepath: str, data: list) -> None:
     with open(filepath, "w") as f:
@@ -215,10 +235,10 @@ def crear_usuario(usuario: UsuarioCreate):
         if u["email"] == usuario.email:
             raise HTTPException(status_code=400, detail="Ya existe un usuario con ese email")
     nuevo = {
-        "identificador": str(uuid4()),
-        "nombre": usuario.nombre,
-        "email": usuario.email,
-        "password_hash": hash_password(usuario.password),
+        "identificador":  str(uuid4()),
+        "nombre":         usuario.nombre,
+        "email":          usuario.email,
+        "password_hash":  hash_password(usuario.password),
         "fecha_registro": datetime.now().isoformat()
     }
     usuarios.append(nuevo)
@@ -271,7 +291,7 @@ async def crear_nota(nota: NotaCreate):
     if not any(u["identificador"] == nota.usuario_id for u in leer_json(USUARIOS_FILE)):
         raise HTTPException(status_code=404, detail="No se puede crear la nota: el usuario no existe")
 
-    # Clasificación IA (fallback automático a "otras")
+    # Clasificación IA con Claude (fallback automático a "otras")
     clasificacion = await classify_note(nota.descripcion)
 
     meta_base = nota.metadato.model_dump() if nota.metadato else {}
@@ -336,6 +356,7 @@ def obtener_estadisticas():
 def root():
     return {
         "status": "ok",
-        "docs": "/docs",
+        "docs":   "/docs",
+        "modelo": ANTHROPIC_MODEL,
         "endpoints": ["/usuarios", "/notas", "/estadisticas", "/clasificar", "/categorias"]
     }
