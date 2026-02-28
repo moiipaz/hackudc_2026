@@ -12,12 +12,9 @@
 <body>
   <div class="noise"></div>
 
-  <!-- =============================================
-       PÁGINA AUTH
-       ============================================= -->
+  <!-- AUTH -->
   <div id="pageAuth" class="page page-auth">
     <div class="auth-wrap">
-
       <div class="auth-brand">
         <h1>Notify<span class="dot">.</span></h1>
         <p class="muted">Tu espacio privado para gestionar ideas.</p>
@@ -64,15 +61,12 @@
         <p id="msgRegistro" class="msg" aria-live="polite"></p>
       </div>
 
-      <p id="serverStatus" class="msg" style="text-align:center;margin-top:14px;min-height:18px;font-size:12px;"></p>
+      <p id="serverStatus" style="text-align:center;margin-top:14px;min-height:18px;font-size:12px;color:var(--muted);"></p>
     </div>
   </div>
 
-  <!-- =============================================
-       PÁGINA APP
-       ============================================= -->
+  <!-- APP -->
   <div id="pageApp" class="page" style="display:none;">
-
     <header class="container">
       <div class="header-inner">
         <div>
@@ -91,31 +85,29 @@
 
     <main class="container">
       <div class="grid">
+
+        <!-- CREAR NOTA -->
         <section class="card">
           <div class="card-label">NUEVA NOTA</div>
-          <form id="formNota" class="form">
+          <form id="formNota">
             <label class="field">
               <span>Descripción</span>
-              <textarea id="descripcion" placeholder="Escribe la nota..." required></textarea>
+              <textarea id="descripcion" placeholder="Escribe la nota... La IA la clasificará automáticamente." required></textarea>
             </label>
             <div class="row">
-              <label class="field">
-                <span>Tipo</span>
-                <select id="tipo" required>
-                  <option value="personal">personal</option>
-                  <option value="trabajo">trabajo</option>
-                  <option value="estudio">estudio</option>
-                </select>
-              </label>
               <label class="field">
                 <span>Prioridad <em class="hint">opcional</em></span>
                 <input id="prioridad" type="number" min="1" max="5" step="1" placeholder="1 – 5" />
               </label>
+              <label class="field">
+                <span>Autor <em class="hint">opcional</em></span>
+                <input id="autor" type="text" placeholder="Tu nombre" />
+              </label>
             </div>
-            <label class="field">
-              <span>Autor <em class="hint">opcional</em></span>
-              <input id="autor" type="text" placeholder="Tu nombre" />
-            </label>
+            <div class="ia-badge">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+              Clasificación automática con IA
+            </div>
             <div class="btn-row">
               <button type="submit" class="btn-primary">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -130,6 +122,7 @@
           </form>
         </section>
 
+        <!-- LISTADO -->
         <section class="card">
           <div class="card-header">
             <div class="card-label" style="margin-bottom:0;">MIS NOTAS</div>
@@ -138,24 +131,42 @@
           <div class="toolbar">
             <div class="search-wrap">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              <input id="buscador" type="search" placeholder="Buscar por texto, autor o tipo..." />
+              <input id="buscador" type="search" placeholder="Buscar por texto, autor o categoría..." />
             </div>
             <select id="filtroTipo" class="filter-select">
               <option value="">Todos</option>
+              <option value="youtube">youtube</option>
+              <option value="audios">audios</option>
+              <option value="recordatorios">recordatorios</option>
+              <option value="codigo">codigo</option>
               <option value="personal">personal</option>
               <option value="trabajo">trabajo</option>
-              <option value="estudio">estudio</option>
+              <option value="estudios">estudios</option>
+              <option value="salud">salud</option>
+              <option value="compra">compra</option>
+              <option value="tareas">tareas</option>
+              <option value="ideas">ideas</option>
+              <option value="lectura">lectura</option>
+              <option value="peliculas_series">películas/series</option>
+              <option value="eventos">eventos</option>
+              <option value="contactos">contactos</option>
+              <option value="recetas">recetas</option>
+              <option value="musica">música</option>
+              <option value="metas">metas</option>
+              <option value="tecnologia">tecnología</option>
+              <option value="inspiraciones">inspiraciones</option>
+              <option value="otras">otras</option>
             </select>
           </div>
           <div id="lista" class="lista"></div>
         </section>
+
       </div>
     </main>
 
     <footer class="container footer">
-      <span class="muted mono">Notify — Backend: FastAPI</span>
+      <span class="muted mono">Notify — Backend: FastAPI + IA</span>
     </footer>
-
   </div>
 
   <script src="./app.js"></script>
