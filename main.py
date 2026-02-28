@@ -151,7 +151,10 @@ async def classify_note(descripcion: str) -> dict:
 
             result = json.loads(content)
 
+            print("reult: ", result);
+
             tipo = result.get("tipo", "otras").strip().lower()
+            print("tipo: ", tipo);
             if tipo not in CATEGORIAS:
                 tipo = "otras"
 
