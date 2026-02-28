@@ -171,7 +171,10 @@ def eliminar_usuario(identificador: str):
 # =========================
 # 📌 ENDPOINTS - NOTAS
 # =========================
-
+@app.get("/whoami")
+def whoami():
+    return {"version": "2.0.0-cors-test", "cors": "enabled"}
+    
 @app.get(
     "/notas",
     response_model=List[Nota],
