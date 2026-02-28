@@ -347,11 +347,10 @@ form.addEventListener("submit", async (ev) => {
 
   setMsg("⏳ Clasificando con IA y guardando...");
   try {
-    const respuesta = await apiFetch("/notas", {
+    await apiFetch("/notas", {
       method: "POST",
       body: JSON.stringify({ usuario_id: usuarioActivo.identificador, descripcion, metadato }),
     });
-    console.log("Respuesta: ", respuesta);
     $("#descripcion").value = "";
     $("#autor").value       = "";
     $("#prioridad").value   = "";
