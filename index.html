@@ -6,115 +6,111 @@
   <title>Notas</title>
   <link rel="stylesheet" href="./style.css" />
 </head>
-
 <body>
-  <header class="container">
-    <h1>Notas</h1>
-    <p class="muted">Crear, ver y borrar notas usando tu API FastAPI.</p>
-  </header>
 
-  <main class="container">
+  <!-- PANTALLA AUTH -->
+  <div id="authScreen" class="authWrap">
+    <div class="authCard">
+      <h1>🧠 Notas</h1>
+      <p class="muted" style="margin-bottom:20px;">Tu cerebro digital personal</p>
 
-    <!-- Usuario -->
-    <section class="card" style="margin-bottom:16px;">
-      <div class="cardTitle">
-        <h2>Usuario</h2>
-        <div class="badge" id="usuarioActivoBadge">Sin usuario</div>
+      <!-- Tabs -->
+      <div class="tabs">
+        <button id="tabLogin" class="tabBtn active" onclick="showTab('login')">Iniciar sesión</button>
+        <button id="tabRegister" class="tabBtn" onclick="showTab('register')">Registrarse</button>
       </div>
 
-      <div class="row">
-        <label>
-          Nombre
-          <input id="uNombre" type="text" placeholder="Ana García" />
-        </label>
-
-        <label>
-          Email
-          <input id="uEmail" type="email" placeholder="ana@email.com" />
-        </label>
+      <!-- Login -->
+      <div id="formLogin">
+        <label>Email<input id="loginEmail" type="email" placeholder="ana@email.com" /></label>
+        <label>Contraseña<input id="loginPassword" type="password" placeholder="••••••" /></label>
+        <button onclick="handleLogin()" style="width:100%;margin-top:10px;">Entrar</button>
+        <p id="loginMsg" class="msg"></p>
       </div>
 
-      <div class="row actions" style="margin-top:10px;">
-        <button type="button" id="btnCrearUsuario">Crear usuario</button>
-        <button type="button" id="btnCargarUsuarios" class="secondary">Cargar usuarios</button>
+      <!-- Registro -->
+      <div id="formRegister" style="display:none;">
+        <label>Nombre<input id="regNombre" type="text" placeholder="Ana García" /></label>
+        <label>Email<input id="regEmail" type="email" placeholder="ana@email.com" /></label>
+        <label>Contraseña<input id="regPassword" type="password" placeholder="Mínimo 6 caracteres" /></label>
+        <button onclick="handleRegister()" style="width:100%;margin-top:10px;">Crear cuenta</button>
+        <p id="registerMsg" class="msg"></p>
       </div>
-
-      <label style="margin-top:10px;">
-        Usuario activo
-        <select id="usuarioSelect"></select>
-      </label>
-
-      <p class="muted" style="margin-top:10px;">
-        Para crear una nota necesitas seleccionar un usuario.
-      </p>
-    </section>
-
-    <div class="grid">
-      <!-- Crear nota -->
-      <section class="card">
-        <h2>Nueva nota</h2>
-
-        <form id="formNota" class="form">
-          <label>
-            Descripción
-            <textarea id="descripcion" placeholder="Escribe la nota..." required></textarea>
-          </label>
-
-          <div class="row">
-            <label>
-              Tipo
-              <select id="tipo" required>
-                <option value="personal">personal</option>
-                <option value="trabajo">trabajo</option>
-                <option value="estudio">estudio</option>
-              </select>
-            </label>
-
-            <label>
-              Prioridad (opcional)
-              <input id="prioridad" type="number" min="1" max="5" step="1" placeholder="1..5" />
-            </label>
-          </div>
-
-          <label>
-            Autor (opcional)
-            <input id="autor" type="text" placeholder="Tu nombre" />
-          </label>
-
-          <div class="row actions">
-            <button type="submit">Crear</button>
-            <button type="button" id="btnRecargar" class="secondary">Recargar</button>
-          </div>
-
-          <p id="msg" class="msg" aria-live="polite"></p>
-        </form>
-      </section>
-
-      <!-- Lista -->
-      <section class="card">
-        <div class="cardTitle">
-          <h2>Listado</h2>
-          <div class="badge" id="contador">0</div>
-        </div>
-
-        <div class="toolbar">
-          <input id="buscador" type="search" placeholder="Buscar por texto / autor / tipo..." />
-          <select id="filtroTipo">
-            <option value="">Todos</option>
-            <option value="personal">personal</option>
-            <option value="trabajo">trabajo</option>
-            <option value="estudio">estudio</option>
-          </select>
-        </div>
-
-        <div id="lista" class="lista"></div>
-      </section>
     </div>
-  </main>
+  </div>
 
-  <footer class="container footer">
-    <span class="muted">Frontend estático. Backend: FastAPI.</span>
-  </footer>
+  <!-- PANTALLA PRINCIPAL -->
+  <div id="mainScreen" style="display:none;">
+    <header class="container">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <h1>🧠 Notas</h1>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div class="badge" id="usuarioActivoBadge">Sin usuario</div>
+          <button class="danger" onclick="handleLogout()" style="padding:8px 14px;font-size:13px;">Cerrar sesión</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="container">
+      <div class="grid">
+        <!-- Crear nota -->
+        <section class="card">
+          <h2>Nueva nota</h2>
+          <form id="formNota" class="form">
+            <label>
+              Descripción
+              <textarea id="descripcion" placeholder="Escribe la nota..." required></textarea>
+            </label>
+            <div class="row">
+              <label>
+                Tipo
+                <select id="tipo" required>
+                  <option value="personal">personal</option>
+                  <option value="trabajo">trabajo</option>
+                  <option value="estudio">estudio</option>
+                </select>
+              </label>
+              <label>
+                Prioridad (opcional)
+                <input id="prioridad" type="number" min="1" max="5" step="1" placeholder="1..5" />
+              </label>
+            </div>
+            <label>
+              Autor (opcional)
+              <input id="autor" type="text" placeholder="Tu nombre" />
+            </label>
+            <div class="row actions">
+              <button type="submit">Crear</button>
+              <button type="button" id="btnRecargar" class="secondary">Recargar</button>
+            </div>
+            <p id="msg" class="msg" aria-live="polite"></p>
+          </form>
+        </section>
+
+        <!-- Lista -->
+        <section class="card">
+          <div class="cardTitle">
+            <h2>Listado</h2>
+            <div class="badge" id="contador">0</div>
+          </div>
+          <div class="toolbar">
+            <input id="buscador" type="search" placeholder="Buscar por texto / autor / tipo..." />
+            <select id="filtroTipo">
+              <option value="">Todos</option>
+              <option value="personal">personal</option>
+              <option value="trabajo">trabajo</option>
+              <option value="estudio">estudio</option>
+            </select>
+          </div>
+          <div id="lista" class="lista"></div>
+        </section>
+      </div>
+    </main>
+
+    <footer class="container footer">
+      <span class="muted">Frontend estático. Backend: FastAPI.</span>
+    </footer>
+  </div>
 
   <script src="./app.js"></script>
 </body>
