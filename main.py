@@ -8,11 +8,14 @@ import os
 import bcrypt
 import httpx
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+
+load_dotenv()  # 👈 carga el .env automáticamente
 
 app = FastAPI(
     title="API de Notas Personales",
     description="Sistema para gestionar usuarios y sus notas privadas",
-    version="4.1.0"
+    version="4.2.0"
 )
 
 app.add_middleware(
@@ -26,20 +29,12 @@ app.add_middleware(
 NOTAS_FILE    = "notas.json"
 USUARIOS_FILE = "usuarios.json"
 
-# =========================
-# 📌 CATEGORÍAS IA
-# =========================
-
 CATEGORIAS = [
     "youtube", "audios", "recordatorios", "codigo", "personal",
     "trabajo", "estudios", "salud", "compra", "tareas", "ideas",
     "lectura", "peliculas_series", "eventos", "contactos", "recetas",
     "musica", "metas", "tecnologia", "inspiraciones", "otras"
 ]
-
-# =========================
-# 📌 MODELOS
-# =========================
 
 class Metadato(BaseModel):
     tipo: str = Field(default="otras", description="Categoría de la nota")
@@ -78,17 +73,12 @@ class UsuarioLogin(BaseModel):
 class ClasificarRequest(BaseModel):
     texto: str
 
-
-# =========================
-# 📌 CLASIFICADOR IA (Google Gemini)
-# =========================
-
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "AIzaSyCYGZ2zgZYVwdzzwNvvpIZLXMgtdNjVlYg")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL   = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
 
-SYSTEM_PROMPT = f"""Eres un clasificador de notas personales.
+SYSTEM_PROMPT = """Eres un clasificador de notas personales.
 Dada una descripción, devuelve SOLO un JSON con este formato exacto (sin texto adicional, sin markdown):
-{{"tipo": "<categoria>", "confianza": <0.0-1.0>, "motivo": "<texto corto>"}}
+{"tipo": "<categoria>", "confianza": <0.0-1.0>, "motivo": "<texto corto>"}
 
 Categorías disponibles (elige SOLO una):
 youtube, audios, recordatorios, codigo, personal, trabajo, estudios, salud,
@@ -118,52 +108,57 @@ Reglas de clasificación:
 - Algo personal/íntimo que no encaja en otras → personal
 - Nada encaja bien → otras
 
-Devuelve SOLO el JSON válido."""
+Devuelve SOLO el JSON válido, sin backticks ni texto extra."""
 
 
 async def classify_note(descripcion: str) -> dict:
-    """Clasifica una nota usando Google Gemini. Fallback a 'otras' si falla."""
     if not GEMINI_API_KEY:
-        return {"tipo": "otras", "confianza": 0.0, "motivo": "Sin GEMINI_API_KEY configurada"}
+        return {"tipo": "otras", "confianza": 0.0, "motivo": "Sin GEMINI_API_KEY en .env"}
 
     try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
+        url = (
+            f"https://generativelanguage.googleapis.com/v1beta/models/"
+            f"{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
+        )
         payload = {
-            "contents": [
-                {"role": "user", "parts": [{"text": SYSTEM_PROMPT + "\n\nTexto a clasificar:\n" + descripcion}]}
-            ],
+            "system_instruction": {"parts": [{"text": SYSTEM_PROMPT}]},
+            "contents": [{"parts": [{"text": descripcion}]}],
             "generationConfig": {
                 "temperature": 0,
                 "maxOutputTokens": 150,
                 "responseMimeType": "application/json",
             },
         }
+
         async with httpx.AsyncClient(timeout=15.0) as client:
-            response = await client.post(url, json=payload, headers={"Content-Type": "application/json"})
+            response = await client.post(url, json=payload)
             response.raise_for_status()
             data = response.json()
-            content = data["candidates"][0]["content"]["parts"][0]["text"].strip()
 
-            result = json.loads(content)
-            tipo = result.get("tipo", "otras").strip().lower()
-            if tipo not in CATEGORIAS:
-                tipo = "otras"
+        content = data["candidates"][0]["content"]["parts"][0]["text"].strip()
 
-            return {
-                "tipo":      tipo,
-                "confianza": float(result.get("confianza", 0.8)),
-                "motivo":    result.get("motivo", ""),
-            }
+        if content.startswith("```"):
+            content = content.split("```")[1]
+            if content.startswith("json"):
+                content = content[4:]
+        content = content.strip()
+
+        result = json.loads(content)
+        tipo = result.get("tipo", "otras").strip().lower()
+        if tipo not in CATEGORIAS:
+            tipo = "otras"
+
+        return {
+            "tipo":      tipo,
+            "confianza": float(result.get("confianza", 0.8)),
+            "motivo":    result.get("motivo", ""),
+        }
 
     except json.JSONDecodeError as e:
         return {"tipo": "otras", "confianza": 0.0, "motivo": f"JSON inválido: {str(e)[:60]}"}
     except Exception as e:
         return {"tipo": "otras", "confianza": 0.0, "motivo": f"Error: {str(e)[:80]}"}
 
-
-# =========================
-# 📌 FUNCIONES AUXILIARES
-# =========================
 
 def leer_json(filepath: str) -> list:
     if not os.path.exists(filepath):
@@ -190,28 +185,16 @@ def verify_password(password: str, hashed: str) -> bool:
     return bcrypt.checkpw(password.encode("utf-8"), hashed.encode("utf-8"))
 
 
-# =========================
-# 📌 ENDPOINTS - USUARIOS
-# =========================
-
 @app.get("/usuarios", response_model=List[Usuario], tags=["Usuarios"])
 def obtener_usuarios():
-    return [
-        {k: v for k, v in u.items() if k != "password_hash"}
-        for u in leer_json(USUARIOS_FILE)
-    ]
+    return [{k: v for k, v in u.items() if k != "password_hash"} for u in leer_json(USUARIOS_FILE)]
 
 @app.post("/usuarios/login", tags=["Usuarios"])
 def login_usuario(datos: UsuarioLogin):
     for u in leer_json(USUARIOS_FILE):
         if u["email"] == datos.email:
             if verify_password(datos.password, u["password_hash"]):
-                return {
-                    "mensaje": "Login correcto",
-                    "identificador": u["identificador"],
-                    "nombre": u["nombre"],
-                    "email": u["email"]
-                }
+                return {"mensaje": "Login correcto", "identificador": u["identificador"], "nombre": u["nombre"], "email": u["email"]}
             else:
                 raise HTTPException(status_code=401, detail="Contraseña incorrecta")
     raise HTTPException(status_code=404, detail="Usuario no encontrado")
@@ -258,11 +241,6 @@ def obtener_notas_de_usuario(usuario_id: str):
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     return [n for n in leer_json(NOTAS_FILE) if n["usuario_id"] == usuario_id]
 
-
-# =========================
-# 📌 ENDPOINTS - NOTAS
-# =========================
-
 @app.get("/notas", response_model=List[Nota], tags=["Notas"])
 def obtener_notas():
     return leer_json(NOTAS_FILE)
@@ -279,7 +257,6 @@ async def crear_nota(nota: NotaCreate):
     if not any(u["identificador"] == nota.usuario_id for u in leer_json(USUARIOS_FILE)):
         raise HTTPException(status_code=404, detail="No se puede crear la nota: el usuario no existe")
 
-    # Clasificación IA con Claude (fallback automático a "otras")
     clasificacion = await classify_note(nota.descripcion)
 
     meta_base = nota.metadato.model_dump() if nota.metadato else {}
@@ -313,14 +290,8 @@ def eliminar_nota(identificador: str):
             return {"mensaje": "Nota eliminada correctamente"}
     raise HTTPException(status_code=404, detail="Nota no encontrada")
 
-
-# =========================
-# 📌 ENDPOINTS - EXTRA
-# =========================
-
 @app.post("/clasificar", tags=["Utilidades"])
 async def clasificar_texto(req: ClasificarRequest):
-    """Debug: clasifica un texto sin guardarlo."""
     return await classify_note(req.texto)
 
 @app.get("/categorias", tags=["Utilidades"])
@@ -343,8 +314,9 @@ def obtener_estadisticas():
 @app.get("/")
 def root():
     return {
-        "status": "ok",
-        "docs":   "/docs",
-        "modelo": GEMINI_MODEL,
+        "status":    "ok",
+        "docs":      "/docs",
+        "modelo":    GEMINI_MODEL,
+        "ia_activa": bool(GEMINI_API_KEY),
         "endpoints": ["/usuarios", "/notas", "/estadisticas", "/clasificar", "/categorias"]
     }
