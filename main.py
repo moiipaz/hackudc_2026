@@ -134,7 +134,6 @@ Reglas de clasificación:
 
 Devuelve SOLO el JSON válido, sin backticks ni texto extra."""
 
-
 async def classify_note(descripcion: str) -> dict:
     if not GEMINI_API_KEY:
         return {"tipo": "otras", "confianza": 0.0, "motivo": "Sin OPENAI_API_KEY en entorno"}
