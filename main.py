@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel, Field, EmailStr
 from typing import List, Optional
 from uuid import uuid4
@@ -7,6 +7,8 @@ import json
 import os
 import bcrypt
 import httpx
+import base64
+import io
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
@@ -28,18 +30,28 @@ app.add_middleware(
 
 NOTAS_FILE    = "notas.json"
 USUARIOS_FILE = "usuarios.json"
+UPLOADS_DIR   = "uploads"
+
+# Crear directorio de uploads si no existe
+os.makedirs(UPLOADS_DIR, exist_ok=True)
+
+ALLOWED_AUDIO_TYPES = {"audio/mpeg", "audio/mp3", "audio/wav", "audio/ogg", "audio/webm", "audio/m4a", "audio/x-m4a"}
+ALLOWED_PDF_TYPES   = {"application/pdf"}
 
 CATEGORIAS = [
     "youtube", "audios", "recordatorios", "codigo", "personal",
     "trabajo", "estudios", "salud", "compra", "tareas", "ideas",
     "lectura", "peliculas_series", "eventos", "contactos", "recetas",
-    "musica", "metas", "tecnologia", "inspiraciones", "otras"
+    "musica", "metas", "tecnologia", "inspiraciones",
+    "links", "mapas_mentales", "flashcards", "proyectos", "reflexiones", "otras"
 ]
+
+PRIORIDADES = ["low", "medium", "high"]
 
 class Metadato(BaseModel):
     tipo: str = Field(default="otras", description="Categoría de la nota")
     autor: Optional[str] = Field(None, example="Juan")
-    prioridad: Optional[int] = Field(None, ge=1, le=5, example=3)
+    prioridad: Optional[str] = Field(None, example="medium", description="low | medium | high")
 
 class NotaBase(BaseModel):
     usuario_id: str
@@ -49,6 +61,12 @@ class NotaBase(BaseModel):
 class Nota(NotaBase):
     identificador: str
     fecha: datetime
+    procesada: bool = False
+
+class NotaPatch(BaseModel):
+    procesada: Optional[bool] = None
+    tipo: Optional[str] = None
+    prioridad: Optional[str] = None
 
 class NotaCreate(BaseModel):
     usuario_id: str
@@ -83,7 +101,8 @@ Dada una descripción, devuelve SOLO un JSON con este formato exacto (sin texto 
 Categorías disponibles (elige SOLO una):
 youtube, audios, recordatorios, codigo, personal, trabajo, estudios, salud,
 compra, tareas, ideas, lectura, peliculas_series, eventos, contactos,
-recetas, musica, metas, tecnologia, inspiraciones, otras
+recetas, musica, metas, tecnologia, inspiraciones,
+links, mapas_mentales, flashcards, proyectos, reflexiones, otras
 
 Reglas de clasificación:
 - Link youtube.com o youtu.be → youtube
@@ -102,6 +121,11 @@ Reglas de clasificación:
 - Inspiración, cita, frase motivacional, reflexión → inspiraciones
 - Gadgets, software, hardware, tech en general → tecnologia
 - Libro, artículo, blog, leer, lectura → lectura
+- URL o enlace que no sea youtube → links
+- Mapa mental, diagrama, representación visual de conceptos → mapas_mentales
+- Tarjeta de estudio, flashcard, pregunta-respuesta, repaso activo → flashcards
+- Proyecto en curso, hoja de ruta, planificación de entregables → proyectos
+- Reflexión personal, introspección, diario, pensamiento abstracto → reflexiones
 - Recordatorio con urgencia, alarma, no olvidar → recordatorios
 - Ámbito profesional, trabajo, empresa, cliente, proyecto laboral → trabajo
 - Universidad, clase, apuntes, examen, estudiar → estudios
@@ -264,10 +288,96 @@ async def crear_nota(nota: NotaCreate):
         "descripcion":   nota.descripcion,
         "fecha":         datetime.now().isoformat(),
         "metadato":      metadato,
+        "procesada":     False,
     }
     notas.append(nueva)
     guardar_json(NOTAS_FILE, notas)
     return nueva
+
+
+RESUMEN_PROMPT = """Eres un asistente que genera resúmenes concisos de notas personales.
+Dado el contenido de una nota, devuelve SOLO un JSON con este formato exacto (sin texto adicional, sin markdown):
+{"resumen": "<texto del resumen en 2-4 frases>", "puntos_clave": ["<punto 1>", "<punto 2>", "<punto 3>"]}
+
+Reglas:
+- El resumen debe ser claro, útil y en español
+- Los puntos clave deben ser los aspectos más importantes (máximo 4)
+- Si la nota es muy corta o simple, adapta el resumen a su contenido
+- Devuelve SOLO el JSON válido, sin backticks ni texto extra"""
+
+async def generate_summary(descripcion: str, tipo: str) -> dict:
+    if not GEMINI_API_KEY:
+        return {
+            "resumen": "No disponible: falta OPENAI_API_KEY en el entorno.",
+            "puntos_clave": []
+        }
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            response = await client.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {GEMINI_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": GEMINI_MODEL,
+                    "temperature": 0.3,
+                    "max_tokens": 300,
+                    "response_format": {"type": "json_object"},
+                    "messages": [
+                        {"role": "system", "content": RESUMEN_PROMPT},
+                        {"role": "user", "content": f"Categoría: {tipo}\n\nContenido de la nota:\n{descripcion}"},
+                    ],
+                },
+            )
+            response.raise_for_status()
+            data = response.json()
+        content_str = data["choices"][0]["message"]["content"].strip()
+        result = json.loads(content_str)
+        return {
+            "resumen": result.get("resumen", "Sin resumen disponible."),
+            "puntos_clave": result.get("puntos_clave", [])
+        }
+    except json.JSONDecodeError as e:
+        return {"resumen": f"Error al procesar respuesta IA: {str(e)[:60]}", "puntos_clave": []}
+    except Exception as e:
+        return {"resumen": f"Error: {str(e)[:80]}", "puntos_clave": []}
+
+@app.get("/notas/{identificador}/resumen", tags=["Notas"])
+async def obtener_resumen_nota(identificador: str):
+    """Genera un resumen con IA de una nota procesada."""
+    for nota in leer_json(NOTAS_FILE):
+        if nota["identificador"] == identificador:
+            if not nota.get("procesada", False):
+                raise HTTPException(status_code=400, detail="Solo se pueden resumir notas procesadas")
+            resumen = await generate_summary(
+                nota.get("descripcion", ""),
+                nota.get("metadato", {}).get("tipo", "otras")
+            )
+            return resumen
+    raise HTTPException(status_code=404, detail="Nota no encontrada")
+
+@app.patch("/notas/{identificador}", response_model=Nota, tags=["Notas"])
+def actualizar_nota(identificador: str, patch: NotaPatch):
+    """Marca una nota como procesada y opcionalmente cambia su categoría."""
+    notas = leer_json(NOTAS_FILE)
+    for i, n in enumerate(notas):
+        if n["identificador"] == identificador:
+            if n.get("procesada", False):
+                raise HTTPException(status_code=400, detail="La nota ya está procesada y no puede modificarse")
+            if patch.tipo is not None:
+                if patch.tipo not in CATEGORIAS:
+                    raise HTTPException(status_code=422, detail=f"Categoría inválida: {patch.tipo}")
+                notas[i]["metadato"]["tipo"] = patch.tipo
+            if patch.prioridad is not None:
+                if patch.prioridad not in PRIORIDADES:
+                    raise HTTPException(status_code=422, detail=f"Prioridad inválida: {patch.prioridad}")
+                notas[i]["metadato"]["prioridad"] = patch.prioridad
+            if patch.procesada is not None:
+                notas[i]["procesada"] = patch.procesada
+            guardar_json(NOTAS_FILE, notas)
+            return notas[i]
+    raise HTTPException(status_code=404, detail="Nota no encontrada")
 
 @app.delete("/notas/{identificador}", tags=["Notas"])
 def eliminar_nota(identificador: str):
@@ -287,6 +397,10 @@ async def clasificar_texto(req: ClasificarRequest):
 def obtener_categorias():
     return {"categorias": CATEGORIAS}
 
+@app.get("/prioridades", tags=["Utilidades"])
+def obtener_prioridades():
+    return {"prioridades": PRIORIDADES}
+
 @app.get("/estadisticas", tags=["Utilidades"])
 def obtener_estadisticas():
     usuarios = leer_json(USUARIOS_FILE)
@@ -300,8 +414,116 @@ def obtener_estadisticas():
         }
     }
 
-@app.get("/")
-def root():
+def extract_pdf_text(content: bytes, max_chars: int = 2000) -> str:
+    """Extrae texto de un PDF usando pypdf."""
+    try:
+        import pypdf
+        reader = pypdf.PdfReader(io.BytesIO(content))
+        text_parts = []
+        for page in reader.pages:
+            text_parts.append(page.extract_text() or "")
+        full_text = " ".join(text_parts).strip()
+        # Limitar para no exceder tokens de la IA
+        return full_text[:max_chars] if len(full_text) > max_chars else full_text
+    except Exception as e:
+        return ""
+
+@app.post("/notas/upload", response_model=Nota, tags=["Notas"], status_code=201)
+async def crear_nota_con_archivo(
+    usuario_id: str = Form(...),
+    descripcion: str = Form(default=""),
+    autor: Optional[str] = Form(default=None),
+    prioridad: Optional[str] = Form(default=None),
+    archivo: UploadFile = File(...),
+):
+    """Crea una nota adjuntando un archivo de audio (mp3, wav, ogg…) o PDF."""
+    if not any(u["identificador"] == usuario_id for u in leer_json(USUARIOS_FILE)):
+        raise HTTPException(status_code=404, detail="No se puede crear la nota: el usuario no existe")
+
+    content_type = archivo.content_type or ""
+    # Normalizar tipos de audio que algunos navegadores envían diferente
+    filename_lower = (archivo.filename or "").lower()
+    if content_type == "application/octet-stream":
+        if filename_lower.endswith(".mp3"):  content_type = "audio/mpeg"
+        elif filename_lower.endswith(".wav"): content_type = "audio/wav"
+        elif filename_lower.endswith(".ogg"): content_type = "audio/ogg"
+        elif filename_lower.endswith(".m4a"): content_type = "audio/m4a"
+        elif filename_lower.endswith(".webm"): content_type = "audio/webm"
+        elif filename_lower.endswith(".pdf"):  content_type = "application/pdf"
+
+    is_audio = content_type in ALLOWED_AUDIO_TYPES
+    is_pdf   = content_type in ALLOWED_PDF_TYPES
+
+    if not is_audio and not is_pdf:
+        raise HTTPException(
+            status_code=415,
+            detail=f"Tipo de archivo no soportado ({content_type}). Solo se aceptan audios y PDFs."
+        )
+
+    file_content = await archivo.read()
+
+    # Guardar archivo en disco
+    ext = os.path.splitext(archivo.filename or "")[1] or (".pdf" if is_pdf else ".mp3")
+    file_id   = str(uuid4())
+    file_name = f"{file_id}{ext}"
+    file_path = os.path.join(UPLOADS_DIR, file_name)
+    with open(file_path, "wb") as f:
+        f.write(file_content)
+
+    # Determinar descripción y clasificación
+    if is_audio:
+        desc_final = descripcion or archivo.filename or "Nota de voz"
+        clasificacion = {"tipo": "audios", "confianza": 1.0, "motivo": "Archivo de audio adjunto"}
+    else:
+        # PDF: extraer texto y clasificar con IA
+        pdf_text = extract_pdf_text(file_content)
+        texto_clasificar = descripcion or pdf_text or archivo.filename or "Documento PDF"
+        desc_final = descripcion or archivo.filename or "Documento PDF"
+        if pdf_text:
+            # Clasificar usando el texto extraído del PDF
+            clasificacion = await classify_note(pdf_text[:1000])
+        else:
+            clasificacion = await classify_note(texto_clasificar)
+
+    metadato = {
+        "tipo":         clasificacion["tipo"],
+        "autor":        autor,
+        "prioridad":    prioridad,
+        "ia_confianza": clasificacion["confianza"],
+        "ia_motivo":    clasificacion["motivo"],
+        "archivo":      file_name,
+        "archivo_tipo": content_type,
+        "archivo_nombre_original": archivo.filename,
+    }
+
+    notas = leer_json(NOTAS_FILE)
+    nueva = {
+        "identificador": str(uuid4()),
+        "usuario_id":    usuario_id,
+        "descripcion":   desc_final,
+        "fecha":         datetime.now().isoformat(),
+        "metadato":      metadato,
+        "procesada":     False,
+    }
+    notas.append(nueva)
+    guardar_json(NOTAS_FILE, notas)
+    return nueva
+
+@app.get("/uploads/{filename}", tags=["Archivos"])
+async def servir_archivo(filename: str):
+    """Sirve un archivo subido (audio o PDF)."""
+    from fastapi.responses import FileResponse
+    file_path = os.path.join(UPLOADS_DIR, filename)
+    if not os.path.exists(file_path) or not os.path.isfile(file_path):
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+    # Seguridad: evitar path traversal
+    abs_path    = os.path.abspath(file_path)
+    abs_uploads = os.path.abspath(UPLOADS_DIR)
+    if not abs_path.startswith(abs_uploads):
+        raise HTTPException(status_code=403, detail="Acceso denegado")
+    return FileResponse(abs_path)
+
+
     return {
         "status":    "ok",
         "docs":      "/docs",

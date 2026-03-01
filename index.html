@@ -92,12 +92,17 @@
           <form id="formNota">
             <label class="field">
               <span>Descripción</span>
-              <textarea id="descripcion" placeholder="Escribe la nota... La IA la clasificará automáticamente." required></textarea>
+              <textarea id="descripcion" placeholder="Escribe la nota... La IA la clasificará automáticamente."></textarea>
             </label>
             <div class="row">
               <label class="field">
                 <span>Prioridad <em class="hint">opcional</em></span>
-                <input id="prioridad" type="number" min="1" max="5" step="1" placeholder="1 – 5" />
+                <select id="prioridad">
+                  <option value="">Sin prioridad</option>
+                  <option value="low">🟢 low</option>
+                  <option value="medium">🟡 medium</option>
+                  <option value="high">🔴 high</option>
+                </select>
               </label>
               <label class="field">
                 <span>Autor <em class="hint">opcional</em></span>
@@ -113,52 +118,127 @@
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 Crear nota
               </button>
+              <button type="button" id="btnAdjuntar" class="btn-ghost">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                Adjuntar archivo
+              </button>
               <button type="button" id="btnRecargar" class="btn-ghost">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
                 Recargar
               </button>
             </div>
+            <!-- Input de archivo oculto -->
+            <input type="file" id="inputArchivo" accept="audio/*,.mp3,.wav,.ogg,.m4a,.webm,.pdf" style="display:none;" />
+            <div id="archivoPreview" class="archivo-preview" style="display:none;">
+              <div class="archivo-info">
+                <span id="archivoIcono">📎</span>
+                <span id="archivoNombre" class="archivo-nombre"></span>
+                <span id="archivoTipo" class="pill"></span>
+              </div>
+              <button type="button" id="btnQuitarArchivo" class="btn-quitar">✕</button>
+            </div>
             <p id="msg" class="msg" aria-live="polite"></p>
           </form>
         </section>
 
-        <!-- LISTADO -->
+        <!-- NOTAS PENDIENTES -->
         <section class="card">
           <div class="card-header">
-            <div class="card-label" style="margin-bottom:0;">MIS NOTAS</div>
-            <div class="counter-badge" id="contador">0</div>
+            <div class="card-label" style="margin-bottom:0;">⏳ PENDIENTES</div>
+            <div class="counter-badge" id="contadorPendientes">0</div>
           </div>
           <div class="toolbar">
             <div class="search-wrap">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              <input id="buscador" type="search" placeholder="Buscar por texto, autor o categoría..." />
+              <input id="buscador" type="search" placeholder="Buscar..." />
             </div>
             <select id="filtroTipo" class="filter-select">
               <option value="">Todos</option>
-              <option value="youtube">youtube</option>
-              <option value="audios">audios</option>
-              <option value="recordatorios">recordatorios</option>
-              <option value="codigo">codigo</option>
-              <option value="personal">personal</option>
-              <option value="trabajo">trabajo</option>
-              <option value="estudios">estudios</option>
-              <option value="salud">salud</option>
-              <option value="compra">compra</option>
-              <option value="tareas">tareas</option>
-              <option value="ideas">ideas</option>
-              <option value="lectura">lectura</option>
-              <option value="peliculas_series">películas/series</option>
-              <option value="eventos">eventos</option>
-              <option value="contactos">contactos</option>
-              <option value="recetas">recetas</option>
-              <option value="musica">música</option>
-              <option value="metas">metas</option>
-              <option value="tecnologia">tecnología</option>
-              <option value="inspiraciones">inspiraciones</option>
-              <option value="otras">otras</option>
+              <option value="youtube">▶ youtube</option>
+              <option value="audios">🎙 audios</option>
+              <option value="recordatorios">🔔 recordatorios</option>
+              <option value="codigo">&lt;/&gt; codigo</option>
+              <option value="personal">👤 personal</option>
+              <option value="trabajo">💼 trabajo</option>
+              <option value="estudios">📚 estudios</option>
+              <option value="salud">❤ salud</option>
+              <option value="compra">🛒 compra</option>
+              <option value="tareas">✓ tareas</option>
+              <option value="ideas">💡 ideas</option>
+              <option value="lectura">📖 lectura</option>
+              <option value="peliculas_series">🎬 películas/series</option>
+              <option value="eventos">📅 eventos</option>
+              <option value="contactos">👥 contactos</option>
+              <option value="recetas">🍳 recetas</option>
+              <option value="musica">🎵 música</option>
+              <option value="metas">🎯 metas</option>
+              <option value="tecnologia">⚙ tecnología</option>
+              <option value="inspiraciones">✨ inspiraciones</option>
+              <option value="links">🔗 links</option>
+              <option value="mapas_mentales">🗺 mapas mentales</option>
+              <option value="flashcards">🃏 flashcards</option>
+              <option value="proyectos">📐 proyectos</option>
+              <option value="reflexiones">🪞 reflexiones</option>
+              <option value="otras">• otras</option>
+            </select>
+            <select id="filtroPrioridad" class="filter-select filter-select-sm">
+              <option value="">Prioridad</option>
+              <option value="high">🔴 high</option>
+              <option value="medium">🟡 medium</option>
+              <option value="low">🟢 low</option>
             </select>
           </div>
-          <div id="lista" class="lista"></div>
+          <div id="listaPendientes" class="lista"></div>
+        </section>
+
+        <!-- NOTAS PROCESADAS -->
+        <section class="card">
+          <div class="card-header">
+            <div class="card-label" style="margin-bottom:0;">✓ PROCESADAS</div>
+            <div class="counter-badge" id="contadorProcesadas">0</div>
+          </div>
+          <div class="toolbar">
+            <div class="search-wrap">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input id="buscadorProcesadas" type="search" placeholder="Buscar..." />
+            </div>
+            <select id="filtroTipoProcesadas" class="filter-select">
+              <option value="">Todos</option>
+              <option value="youtube">▶ youtube</option>
+              <option value="audios">🎙 audios</option>
+              <option value="recordatorios">🔔 recordatorios</option>
+              <option value="codigo">&lt;/&gt; codigo</option>
+              <option value="personal">👤 personal</option>
+              <option value="trabajo">💼 trabajo</option>
+              <option value="estudios">📚 estudios</option>
+              <option value="salud">❤ salud</option>
+              <option value="compra">🛒 compra</option>
+              <option value="tareas">✓ tareas</option>
+              <option value="ideas">💡 ideas</option>
+              <option value="lectura">📖 lectura</option>
+              <option value="peliculas_series">🎬 películas/series</option>
+              <option value="eventos">📅 eventos</option>
+              <option value="contactos">👥 contactos</option>
+              <option value="recetas">🍳 recetas</option>
+              <option value="musica">🎵 música</option>
+              <option value="metas">🎯 metas</option>
+              <option value="tecnologia">⚙ tecnología</option>
+              <option value="inspiraciones">✨ inspiraciones</option>
+              <option value="links">🔗 links</option>
+              <option value="mapas_mentales">🗺 mapas mentales</option>
+              <option value="flashcards">🃏 flashcards</option>
+              <option value="proyectos">📐 proyectos</option>
+              <option value="reflexiones">🪞 reflexiones</option>
+              <option value="otras">• otras</option>
+            </select>
+            <select id="filtroPrioridadProcesadas" class="filter-select filter-select-sm">
+              <option value="">Prioridad</option>
+              <option value="high">🔴 high</option>
+              <option value="medium">🟡 medium</option>
+              <option value="low">🟢 low</option>
+            </select>
+          </div>
+          <div id="listaProcesadas" class="lista"></div>
         </section>
 
       </div>
@@ -167,6 +247,69 @@
     <footer class="container footer">
       <span class="muted mono">Notify — Backend: FastAPI + IA</span>
     </footer>
+  </div>
+
+
+  <!-- MODAL PROCESAR NOTA -->
+  <div id="modalProcesar" class="modal-overlay" style="display:none;">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Procesar nota</div>
+        <button type="button" id="modalCerrar" class="btn-quitar">✕</button>
+      </div>
+      <div class="modal-desc" id="modalDescripcion"></div>
+      <div class="modal-ia">
+        <span class="pill pill-ia" id="modalIaMotivo"></span>
+      </div>
+      <label class="field" style="margin-top:16px;">
+        <span>Categoría</span>
+        <select id="modalCategoria" class="filter-select" style="width:100%;">
+          <option value="youtube">▶ youtube</option>
+          <option value="audios">🎙 audios</option>
+          <option value="recordatorios">🔔 recordatorios</option>
+          <option value="codigo">&lt;/&gt; codigo</option>
+          <option value="personal">👤 personal</option>
+          <option value="trabajo">💼 trabajo</option>
+          <option value="estudios">📚 estudios</option>
+          <option value="salud">❤ salud</option>
+          <option value="compra">🛒 compra</option>
+          <option value="tareas">✓ tareas</option>
+          <option value="ideas">💡 ideas</option>
+          <option value="lectura">📖 lectura</option>
+          <option value="peliculas_series">🎬 películas/series</option>
+          <option value="eventos">📅 eventos</option>
+          <option value="contactos">👥 contactos</option>
+          <option value="recetas">🍳 recetas</option>
+          <option value="musica">🎵 música</option>
+          <option value="metas">🎯 metas</option>
+          <option value="tecnologia">⚙ tecnología</option>
+          <option value="inspiraciones">✨ inspiraciones</option>
+          <option value="links">🔗 links</option>
+          <option value="mapas_mentales">🗺 mapas mentales</option>
+          <option value="flashcards">🃏 flashcards</option>
+          <option value="proyectos">📐 proyectos</option>
+          <option value="reflexiones">🪞 reflexiones</option>
+          <option value="otras">• otras</option>
+        </select>
+      </label>
+      <label class="field" style="margin-top:12px;">
+        <span>Prioridad</span>
+        <select id="modalPrioridad" class="filter-select" style="width:100%;">
+          <option value="">Sin prioridad</option>
+          <option value="low">🟢 low</option>
+          <option value="medium">🟡 medium</option>
+          <option value="high">🔴 high</option>
+        </select>
+      </label>
+      <div class="modal-actions">
+        <button type="button" id="btnAceptarIA" class="btn-ghost">Aceptar categoría IA</button>
+        <button type="button" id="btnConfirmarProcesar" class="btn-primary">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Confirmar y procesar
+        </button>
+      </div>
+      <p id="modalMsg" class="msg"></p>
+    </div>
   </div>
 
   <script src="./app.js"></script>
