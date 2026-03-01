@@ -19,19 +19,15 @@
         <h1>Notify<span class="dot">.</span></h1>
         <p class="muted">Tu espacio privado para gestionar ideas.</p>
       </div>
-
       <div class="auth-tabs">
         <button type="button" class="auth-tab active" id="tabLogin">Iniciar sesión</button>
         <button type="button" class="auth-tab" id="tabRegistro">Crear cuenta</button>
       </div>
-
       <div id="panelLogin" class="auth-panel">
-        <label class="field">
-          <span>Email</span>
+        <label class="field"><span>Email</span>
           <input id="lEmail" type="email" placeholder="ana@email.com" autocomplete="email" />
         </label>
-        <label class="field">
-          <span>Contraseña</span>
+        <label class="field"><span>Contraseña</span>
           <input id="lPassword" type="password" placeholder="••••••••" autocomplete="current-password" />
         </label>
         <button type="button" id="btnLogin" class="btn-primary btn-full">
@@ -40,18 +36,14 @@
         </button>
         <p id="msgLogin" class="msg" aria-live="polite"></p>
       </div>
-
       <div id="panelRegistro" class="auth-panel" style="display:none;">
-        <label class="field">
-          <span>Nombre</span>
+        <label class="field"><span>Nombre</span>
           <input id="uNombre" type="text" placeholder="Ana García" autocomplete="name" />
         </label>
-        <label class="field">
-          <span>Email</span>
+        <label class="field"><span>Email</span>
           <input id="uEmail" type="email" placeholder="ana@email.com" autocomplete="email" />
         </label>
-        <label class="field">
-          <span>Contraseña <em class="hint">mín. 6 caracteres</em></span>
+        <label class="field"><span>Contraseña <em class="hint">mín. 6 caracteres</em></span>
           <input id="uPassword" type="password" placeholder="••••••••" autocomplete="new-password" />
         </label>
         <button type="button" id="btnCrearUsuario" class="btn-primary btn-full">
@@ -60,7 +52,6 @@
         </button>
         <p id="msgRegistro" class="msg" aria-live="polite"></p>
       </div>
-
       <p id="serverStatus" style="text-align:center;margin-top:14px;min-height:18px;font-size:12px;color:var(--muted);"></p>
     </div>
   </div>
@@ -90,13 +81,11 @@
         <section class="card">
           <div class="card-label">NUEVA NOTA</div>
           <form id="formNota">
-            <label class="field">
-              <span>Descripción</span>
-              <textarea id="descripcion" placeholder="Escribe la nota... La IA la clasificará automáticamente."></textarea>
+            <label class="field"><span>Descripción</span>
+              <textarea id="descripcion" placeholder="Escribe la nota, pega una URL... La IA lo clasificará automáticamente."></textarea>
             </label>
             <div class="row">
-              <label class="field">
-                <span>Prioridad <em class="hint">opcional</em></span>
+              <label class="field"><span>Prioridad <em class="hint">opcional</em></span>
                 <select id="prioridad">
                   <option value="">Sin prioridad</option>
                   <option value="low">🟢 low</option>
@@ -104,14 +93,13 @@
                   <option value="high">🔴 high</option>
                 </select>
               </label>
-              <label class="field">
-                <span>Autor <em class="hint">opcional</em></span>
+              <label class="field"><span>Autor <em class="hint">opcional</em></span>
                 <input id="autor" type="text" placeholder="Tu nombre" />
               </label>
             </div>
             <div class="ia-badge">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
-              Clasificación automática con IA
+              Clasificación automática con IA · Transcripción Whisper · Scraping de links
             </div>
             <div class="btn-row">
               <button type="submit" class="btn-primary">
@@ -120,15 +108,15 @@
               </button>
               <button type="button" id="btnAdjuntar" class="btn-ghost">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-                Adjuntar archivo
+                Adjuntar
               </button>
               <button type="button" id="btnRecargar" class="btn-ghost">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
                 Recargar
               </button>
             </div>
-            <!-- Input de archivo oculto -->
-            <input type="file" id="inputArchivo" accept="audio/*,.mp3,.wav,.ogg,.m4a,.webm,.pdf" style="display:none;" />
+            <!-- Input oculto: audio, pdf, txt -->
+            <input type="file" id="inputArchivo" accept="audio/*,.mp3,.wav,.ogg,.m4a,.webm,.pdf,.txt,text/plain" style="display:none;" />
             <div id="archivoPreview" class="archivo-preview" style="display:none;">
               <div class="archivo-info">
                 <span id="archivoIcono">📎</span>
@@ -156,6 +144,8 @@
               <option value="">Todos</option>
               <option value="youtube">▶ youtube</option>
               <option value="audios">🎙 audios</option>
+              <option value="links">🔗 links</option>
+              <option value="viajes">✈️ viajes</option>
               <option value="recordatorios">🔔 recordatorios</option>
               <option value="codigo">&lt;/&gt; codigo</option>
               <option value="personal">👤 personal</option>
@@ -174,7 +164,6 @@
               <option value="metas">🎯 metas</option>
               <option value="tecnologia">⚙ tecnología</option>
               <option value="inspiraciones">✨ inspiraciones</option>
-              <option value="links">🔗 links</option>
               <option value="mapas_mentales">🗺 mapas mentales</option>
               <option value="flashcards">🃏 flashcards</option>
               <option value="proyectos">📐 proyectos</option>
@@ -206,6 +195,8 @@
               <option value="">Todos</option>
               <option value="youtube">▶ youtube</option>
               <option value="audios">🎙 audios</option>
+              <option value="links">🔗 links</option>
+              <option value="viajes">✈️ viajes</option>
               <option value="recordatorios">🔔 recordatorios</option>
               <option value="codigo">&lt;/&gt; codigo</option>
               <option value="personal">👤 personal</option>
@@ -224,7 +215,6 @@
               <option value="metas">🎯 metas</option>
               <option value="tecnologia">⚙ tecnología</option>
               <option value="inspiraciones">✨ inspiraciones</option>
-              <option value="links">🔗 links</option>
               <option value="mapas_mentales">🗺 mapas mentales</option>
               <option value="flashcards">🃏 flashcards</option>
               <option value="proyectos">📐 proyectos</option>
@@ -245,10 +235,9 @@
     </main>
 
     <footer class="container footer">
-      <span class="muted mono">Notify — Backend: FastAPI + IA</span>
+      <span class="muted mono">Notify v5 — FastAPI + Whisper + IA</span>
     </footer>
   </div>
-
 
   <!-- MODAL PROCESAR NOTA -->
   <div id="modalProcesar" class="modal-overlay" style="display:none;">
@@ -258,14 +247,13 @@
         <button type="button" id="modalCerrar" class="btn-quitar">✕</button>
       </div>
       <div class="modal-desc" id="modalDescripcion"></div>
-      <div class="modal-ia">
-        <span class="pill pill-ia" id="modalIaMotivo"></span>
-      </div>
-      <label class="field" style="margin-top:16px;">
-        <span>Categoría</span>
+      <div class="modal-ia"><span class="pill pill-ia" id="modalIaMotivo"></span></div>
+      <label class="field" style="margin-top:16px;"><span>Categoría principal</span>
         <select id="modalCategoria" class="filter-select" style="width:100%;">
           <option value="youtube">▶ youtube</option>
           <option value="audios">🎙 audios</option>
+          <option value="links">🔗 links</option>
+          <option value="viajes">✈️ viajes</option>
           <option value="recordatorios">🔔 recordatorios</option>
           <option value="codigo">&lt;/&gt; codigo</option>
           <option value="personal">👤 personal</option>
@@ -284,7 +272,6 @@
           <option value="metas">🎯 metas</option>
           <option value="tecnologia">⚙ tecnología</option>
           <option value="inspiraciones">✨ inspiraciones</option>
-          <option value="links">🔗 links</option>
           <option value="mapas_mentales">🗺 mapas mentales</option>
           <option value="flashcards">🃏 flashcards</option>
           <option value="proyectos">📐 proyectos</option>
@@ -292,8 +279,7 @@
           <option value="otras">• otras</option>
         </select>
       </label>
-      <label class="field" style="margin-top:12px;">
-        <span>Prioridad</span>
+      <label class="field" style="margin-top:12px;"><span>Prioridad</span>
         <select id="modalPrioridad" class="filter-select" style="width:100%;">
           <option value="">Sin prioridad</option>
           <option value="low">🟢 low</option>
