@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', function () {
 
-const API_BASE = "http://127.0.0.1:8000";
+const API_BASE = "https://notify-o1c2.onrender.com";
 const $ = (sel) => document.querySelector(sel);
 
 const CATEGORY_ICONS = {
@@ -21,7 +21,7 @@ const CATEGORY_COLORS = {
   ideas:"rgba(234,179,8,.18)", lectura:"rgba(14,165,233,.18)",
   peliculas_series:"rgba(217,70,239,.18)", eventos:"rgba(20,184,166,.18)",
   contactos:"rgba(168,162,158,.18)", recetas:"rgba(234,88,12,.18)",
-  musica:"rgba(236,72,153,.18)", metas:"rgba(34,197,94,.18)",
+  musica:"rgba(236,72,153,.18)", metas:"rgba(120, 135, 125, 0.18)",
   tecnologia:"rgba(6,182,212,.18)", inspiraciones:"rgba(251,146,60,.18)",
   links:"rgba(99,202,183,.18)", mapas_mentales:"rgba(139,92,246,.18)",
   flashcards:"rgba(249,115,22,.18)", proyectos:"rgba(20,184,166,.18)",
